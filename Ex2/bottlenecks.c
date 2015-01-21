@@ -4,22 +4,23 @@
 int i = 0; //Global variable
 pthread_mutex_t mtx;
 
-void* threadFunc1(){
-	pthread_mutex_lock(&mtx);	
+void* threadFunc1(){	
 	for (int j = 0; j <= 1000000; j++){
+		pthread_mutex_lock(&mtx);		
 		i++;
+		pthread_mutex_unlock(&mtx);
 	}
-	pthread_mutex_unlock(&mtx);
 	return NULL;
 }
 
 
 void* threadFunc2(){
-	pthread_mutex_lock(&mtx);
+
 	for (int j = 0; j <= 1000000; j++){
+		pthread_mutex_lock(&mtx);		
 		i--;
+		pthread_mutex_unlock(&mtx);
 	}
-	pthread_mutex_unlock(&mtx);
 	return NULL;
 }
 
