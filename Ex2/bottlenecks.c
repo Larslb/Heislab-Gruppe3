@@ -38,7 +38,7 @@ int main(){
 	pthread_join(thread2, NULL);
 	
 	pthread_mutex_destroy(&mtx);	
-	printf(" %d \n\n ", i);
+ 	printf(" %d \n\n ", i);
 	
 	return 0;
 }
