@@ -1,0 +1,101 @@
+package main
+import(
+	"fmt"
+	"net"
+	"time"
+	"encoding/json"
+)
+var i int
+var Boolvar bool
+//var IPMaster net.UDPAddr
+var state int
+
+type UDPMessage struct{
+	Message string
+	MessageNumber int
+}
+
+
+func Restart(){
+	buffer := make([]byte,1024)
+	raddr,_ := net.ResolveUDPAddr("udp", ":25555")	
+	recievesock,_ := net.ListenUDP("udp", raddr) 
+	recievesock.SetReadDeadline(time.Now().Add(5*time.Millisecond))
+	_,_,err := recievesock.ReadFromUDP(buffer) // times out etter 3 sec
+		if err != nil{
+			state = 1 //master
+			fmt.Println("Master")
+		}else {
+			state = 2 //backup
+			fmt.Println("Backup")
+			}	
+			
+	recievesock.Close()
+}
+
+
+func Backup(){
+	buffer := make([]byte,1024)
+	raddr,_ := net.ResolveUDPAddr("udp", ":25555")
+	backupsock,_ := net.ListenUDP("udp", raddr)
+	backupsock.SetReadDeadline(time.Now().Add(10*time.Millisecond))
+	
+	mlen , _,err := backupsock.ReadFromUDP(buffer)
+	if (err == nil){
+		var rec_msg UDPMessage
+		json.Unmarshal(buffer[:mlen], &rec_msg)
+		i = rec_msg.MessageNumber
+		//fmt.Println(rec_msg.Message,i,"backup")
+	}else {	
+		state = 0
+	}
+	backupsock.Close()
+}
+
+
+func Send(){
+	for {	
+		baddr,err := net.ResolveUDPAddr("udp", "127.241.187.255:25555")
+		sendSock, err := net.DialUDP("udp", nil ,baddr) // connection
+		send_msg := UDPMessage{"Im Alive",i}
+		time.Sleep(1*time.Millisecond)
+		buf,_ := json.Marshal(send_msg)
+		_,err = sendSock.Write(buf)
+		if err != nil{
+			panic(err)
+		}
+	}
+}
+
+func print(){
+	for {
+		i=i+1
+		fmt.Println(i,"master")
+		time.Sleep(1*time.Second)
+	}
+}
+
+
+func main(){			
+	state = 0 
+	for {
+		switch state{
+			case 0 : //Restart state
+				fmt.Println("!!!")
+				Restart()
+			
+				
+			case 1 : //Primary
+				go Send()				
+				go print()
+				time.Sleep(100*time.Second)
+				
+
+			case 2 : //Backup
+				Backup()
+	
+			}
+		}
+	Boolvar = false
+	
+}
