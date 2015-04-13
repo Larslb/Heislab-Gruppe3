@@ -31,6 +31,13 @@ var button_channel_matrix = [N_FLOORS][N_BUTTONS]int {
 }
 
 
+type myOrder struct{
+	buttonType int
+	floor int
+	value int
+}
+
+
 func Elev_init()int {
 	if(io_init() != 1){
 		return 0;
@@ -82,12 +89,16 @@ func elev_set_door_open_lamp(value bool){
 
 
 
-func elev_get_obstruction_signal(stopchan chan int){
-	stopchan <- io_read_bit(STOP)
+func elev_get_obstruction_signal(obstrChan chan int){
+	obstrChan <- io_read_bit(OBSTRUCTION)
 
 }
 
-func elev_set_stop_lamp(value bool){
+func elev_get_stop_signal(stopChan chan int) {
+	stopChan <- io_read_bit(STOP)
+}
+
+func elev_set_stop_lamp(value int){
 	if value{
 		io_set_bit(LIGHT_STOP)
 	} else{
@@ -137,7 +148,7 @@ func elev_set_floor_indicator(floor int){
 
 }
 
-func elev_get_button_signal(button int, floor int, buttonchan chan int){
+func elev_get_button_signal(button, floor int, buttonChan chan myOrder){
 	/*if (floor <0 && floor >N_FLOORS) {
 		//errorhandling
 		return err
@@ -158,12 +169,18 @@ func elev_get_button_signal(button int, floor int, buttonchan chan int){
 		return err
 	}*/
 
+	var order myOrder
+	order.buttonType = button
+	order.floor = floor
 	
 	if(io_read_bit(button_channel_matrix[floor][button]) == 1){
-		buttonchan <- 1;
+		order.value = 1
+		
 	} else{
-		buttonchan <- 0;
+		order.value = 0
+		
 	}
+	buttonChan <- order
 }
 
 

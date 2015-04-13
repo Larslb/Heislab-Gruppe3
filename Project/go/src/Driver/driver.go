@@ -1,46 +1,81 @@
 package Driver
 import (
 	
-	//"Nettwork"
+	//"Network"
 	//"fmt"
 	//"time"
 )
 
-func ElevPanelThread(buttonchannel chan int){
+func readElevPanel(buttonChan chan myOrder){
 	for {
 		for i:=0;i<N_FLOORS;i++{
-			elev_get_button_signal(BUTTON_COMMAND,i, buttonchannel)
+			elev_get_button_signal(BUTTON_COMMAND,i, buttonChan)
 		}
 	}
 }
-func SensorThread(sensorChan chan int){
-	
+
+func readFloorPanel(){
+	for{
+		for i:=0;i<N_BUTTONS-1;i++{
+			for j:=0;j<N_FLOORS;j++{
+				elev_get_button_signal(i, j, buttonChan)
+			}
+		}
+	}
 }
-func StopThread(stopChan chan int){
 
+func readSensors(sensorChan chan int){
+	for {
+		for i:=0;i<N_FLOORS;i++{
+			elev_get_floor_sensor_signal(sensorChan)
+		}
+	}
 }
-func FloorPanelThread(buttonchan chan int){
 
+func readStopSignal(stopChan chan int){
+	for {
+		elev_get_stop_signal(stopChan)
+	}
 }
 
 
 
-func main(){
-	
-	buttonFloorChan := make(chan int)
-	buttonElevChan := make(chan int)
+
+
+func Driver(){
+
+	buttonFloorChan := make(chan myOrder)
+	buttonElevChan  := make(chan myOrder) 
 	stopChan := make(chan int)
 	sensorChan := make(chan int)
 
-
-	go elevPanelThread(buttonElevChan)
-	go sensorThread(sensorChan)
-	go stopThread(stopChan)
-	go floorPanelThread(buttonFloorChan)	
+	go readElevPanel(buttonElevChan)
+	go readSensors(sensorChan)
+	go readStopSignal(stopChan)
+	go readFloorPanel(buttonFloorChan)
 	
-	
-	elev.init()
-	bestilling <- buttonElevChan
-	println(bestilling)
-	
+	for {
+		select {
+			// case: motta bestillinger fra master??
+			
+			case button := <- buttonElevChan
+				elev_set_button_lamp(button.buttonType, button.floor, button.value)
+				// SETTE BESTILLING I KØ
+				
+			
+			
+			case button := buttonFloorChan
+				//SEND TIL MASTER
+			
+			case stop := <- stopChan  //BURDE STOP CASE OVERSTYRE DE ANDRE?
+				elev_set_stop_lamp(stop)
+				// GJØR NOE MER?
+			
+			
+			case sensor := <- sensorChan
+				if sensor != -1{
+					elev_set_floor_indicator(sensor)
+				}
+		}
+	}	
 }
