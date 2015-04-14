@@ -1,9 +1,9 @@
 package Driver
 import (
 	
-	//"Network"
-	//"fmt"
 	//"time"
+	//"Queue"
+
 )
 
 func readElevPanel(buttonChan chan myOrder){
@@ -25,9 +25,12 @@ func readFloorPanel(){
 }
 
 func readSensors(sensorChan chan int){
+	tmpSensorChan := make(chan int, 1) // Nødvendig med buffer?
 	for {
-		for i:=0;i<N_FLOORS;i++{
-			elev_get_floor_sensor_signal(sensorChan)
+		elev_get_floor_sensor_signal(tmpSensorChan)
+		tmpVal := <- tmpSensorChan
+		if tmpVal != -1 {
+			sensorChan <- tmpVal		
 		}
 	}
 }
@@ -38,14 +41,16 @@ func readStopSignal(stopChan chan int){
 	}
 }
 
+func floorReached
+
 
 
 
 
 func Driver(){
 
-	buttonFloorChan := make(chan myOrder)
-	buttonElevChan  := make(chan myOrder) 
+	buttonFloorChan := make(chan MyOrder)
+	buttonElevChan  := make(chan MyOrder) 
 	stopChan := make(chan int)
 	sensorChan := make(chan int)
 
@@ -57,25 +62,40 @@ func Driver(){
 	for {
 		select {
 			// case: motta bestillinger fra master??
+			//need to 
 			
-			case button := <- buttonElevChan
-				elev_set_button_lamp(button.buttonType, button.floor, button.value)
-				// SETTE BESTILLING I KØ
+			case button := <-buttonElevChan:
+				elev_set_button_lamp(button.ButtonType, button.Floor, button.Value)
+				// 1. Sette bestilling i intern kø (bestillinger som bare denne heisen
+				//    kan bruke).
+
+				// HVA MED PRIORITERING??
+				Queue.SetInternalOrders(button.Floor)
 				
 			
 			
-			case button := buttonFloorChan
-				//SEND TIL MASTER
+			case button := <-buttonFloorChan:
+				// 1. Sette bestilling i ekstern kø som må leses av Nettverk og
+				//    sendes til MASTER.
+				Queue.SetExternalOrders(button.ButtonType, button.Floor)
 			
-			case stop := <- stopChan  //BURDE STOP CASE OVERSTYRE DE ANDRE?
+			case stop := <-stopChan:  //BURDE STOP CASE OVERSTYRE DE ANDRE CASENE?
 				elev_set_stop_lamp(stop)
-				// GJØR NOE MER?
+				elev_set_motor_dir(STOP)
+				Queue.Delete_all_internalOrders()
 			
 			
-			case sensor := <- sensorChan
-				if sensor != -1{
-					elev_set_floor_indicator(sensor)
+			case sensor := <-sensorChan:
+				elev_set_floor_indicator(sensor)
+				if Queue.CheckFloor(sensor) {
+					elev_set_motor_dir(0)
+					elev_set_door_open(true)
+					time.Sleep(3*time.Second)
+					Queue.DeleteInternalOrder(sensor)
+					//send complete to master
 				}
+				
+				
 		}
-	}	
+	}
 }

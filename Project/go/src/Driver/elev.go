@@ -2,19 +2,10 @@ package Driver
 
 
 const (
-	N_BUTTONS int = 3
-	N_FLOORS int = 4
-	err int = 0		// Hvordan bruke denne?
-
 	BUTTON_CALL_UP int = 0
 	BUTTON_CALL_DOWN int = 1
 	BUTTON_COMMAND int = 2
 )
-
-
-// Hvordan haandtere globale variable?
-// Hvilke funksjoner trenger å ta inn channels?
-
 
 var lamp_channel_matrix = [N_FLOORS][N_BUTTONS]int {
 {LIGHT_UP1, LIGHT_DOWN1, LIGHT_COMMAND1},
@@ -31,11 +22,6 @@ var button_channel_matrix = [N_FLOORS][N_BUTTONS]int {
 }
 
 
-type myOrder struct{
-	buttonType int
-	floor int
-	value int
-}
 
 
 func Elev_init()int {
@@ -169,18 +155,18 @@ func elev_get_button_signal(button, floor int, buttonChan chan myOrder){
 		return err
 	}*/
 
-	var order myOrder
-	order.buttonType = button
-	order.floor = floor
+	var buttonOrder myOrder
+	buttonOrder.buttonType = button
+	buttonOrder.floor = floor
 	
 	if(io_read_bit(button_channel_matrix[floor][button]) == 1){
-		order.value = 1
+		buttonOrder.value = 1
 		
 	} else{
-		order.value = 0
+		buttonOrder.value = 0
 		
 	}
-	buttonChan <- order
+	buttonChan <- buttonOrder
 }
 
 

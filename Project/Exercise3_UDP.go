@@ -5,9 +5,9 @@ package main
 import(
 	"fmt"
 	"net"
-	"time"
+	//"time"
 )
-
+/*
 func Recieve(){
 	buffer := make([]byte,1024) 
 	raddr,_ := net.ResolveUDPAddr("udp", ":20004")
@@ -32,15 +32,20 @@ func Send(){
 	}
 	
 }
-
+*/
 func main(){
 	
+	/*
 	go Recieve()
 	time.Sleep(1*time.Second)
 	Send()
 	
 	time.Sleep(100*time.Second)
-	
+	*/
 
+    	ip,_ := net.LookupIP("localhost")
+
+
+    	fmt.Println(ip)
 		
 }
