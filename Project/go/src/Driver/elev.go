@@ -24,7 +24,7 @@ var button_channel_matrix = [N_FLOORS][N_BUTTONS]int {
 
 
 
-func Elev_init()int {
+func Elev_init() bool {
 	if(io_init() != 1){
 		return 0;
 	}
@@ -45,8 +45,7 @@ func Elev_init()int {
 	elev_set_door_open_lamp(false)
 	elev_set_floor_indicator(0)
 
-	return 1
-
+	return true
 }
 
 func elev_set_motor_direction(dir int){
@@ -134,7 +133,7 @@ func elev_set_floor_indicator(floor int){
 
 }
 
-func elev_get_button_signal(button, floor int, buttonChan chan myOrder){
+func elev_get_button_signal(button, floor int, buttonChan chan MyOrder){
 	/*if (floor <0 && floor >N_FLOORS) {
 		//errorhandling
 		return err
@@ -155,18 +154,12 @@ func elev_get_button_signal(button, floor int, buttonChan chan myOrder){
 		return err
 	}*/
 
-	var buttonOrder myOrder
-	buttonOrder.buttonType = button
-	buttonOrder.floor = floor
+	var buttonOrder MyOrder
+	buttonOrder.ButtonType = button
+	buttonOrder.Floor = floor
 	
 	if(io_read_bit(button_channel_matrix[floor][button]) == 1){
-		buttonOrder.value = 1
-		
-	} else{
-		buttonOrder.value = 0
-		
-	}
-	buttonChan <- buttonOrder
+		buttonChan <- buttonOrder
 }
 
 

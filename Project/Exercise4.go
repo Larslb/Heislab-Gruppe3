@@ -28,7 +28,7 @@ func Recieve(){
 		var rec_msg UDPMessage
 		json.Unmarshal(buffer[:mlen], &rec_msg)
 		fmt.Println(IPMaster.IP)
-		fmt.Println(rec_msg.MessageNumber, rec_msg.Message)
+		fmt.Println(rec_msg.MessageNumber, rec_msg.Message,)
 	}
 }
 

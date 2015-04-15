@@ -43,7 +43,7 @@ func main(){
 	time.Sleep(100*time.Second)
 	*/
 
-    	ip,_ := net.LookupIP("localhost")
+    	ip,_ := net.("localhost")
 
 
     	fmt.Println(ip)

@@ -2,7 +2,7 @@ package Driver
 import (
 	
 	//"time"
-	//"Queue"
+	"Queue"
 
 )
 
@@ -35,28 +35,18 @@ func readSensors(sensorChan chan int){
 	}
 }
 
-func readStopSignal(stopChan chan int){
-	for {
-		elev_get_stop_signal(stopChan)
-	}
-}
-
-func floorReached
 
 
+//func floorReached () {}
 
-
-
-func Driver(){
+func Driver(floorChan chan []int, elevChan [][]string ,sensChan []int){
 
 	buttonFloorChan := make(chan MyOrder)
 	buttonElevChan  := make(chan MyOrder) 
-	stopChan := make(chan int)
 	sensorChan := make(chan int)
 
 	go readElevPanel(buttonElevChan)
 	go readSensors(sensorChan)
-	go readStopSignal(stopChan)
 	go readFloorPanel(buttonFloorChan)
 	
 	for {
@@ -65,25 +55,25 @@ func Driver(){
 			//need to 
 			
 			case button := <-buttonElevChan:
-				elev_set_button_lamp(button.ButtonType, button.Floor, button.Value)
-				// 1. Sette bestilling i intern kø (bestillinger som bare denne heisen
-				//    kan bruke).
+				elev_set_button_lamp(button.ButtonType,button.Floor,1)
+				// 1. Sette bestilling i intern kø (bestillinger som bare denne	 					//    heisen
+	 			//    kan bruke).
 
 				// HVA MED PRIORITERING??
 				Queue.SetInternalOrders(button.Floor)
+
+				floorChan <- Queue.GetInternalOrders()
 				
-			
-			
 			case button := <-buttonFloorChan:
 				// 1. Sette bestilling i ekstern kø som må leses av Nettverk og
 				//    sendes til MASTER.
+
+				//master skal egentlig bestemme dette
+				elev_set_button_lamp(button.ButtonType,button.Floor,1) 
 				Queue.SetExternalOrders(button.ButtonType, button.Floor)
-			
-			case stop := <-stopChan:  //BURDE STOP CASE OVERSTYRE DE ANDRE CASENE?
-				elev_set_stop_lamp(stop)
-				elev_set_motor_dir(STOP)
-				Queue.Delete_all_internalOrders()
-			
+				
+				elevChan <- Queue.GetUnprExtOrd()
+
 			
 			case sensor := <-sensorChan:
 				elev_set_floor_indicator(sensor)
@@ -93,9 +83,8 @@ func Driver(){
 					time.Sleep(3*time.Second)
 					Queue.DeleteInternalOrder(sensor)
 					//send complete to master
+					
 				}
-				
-				
 		}
 	}
 }
