@@ -11,33 +11,27 @@ import (
 
 func main(){
 	
-	
-	buttonFloorChan := make(chan int, 1)
-	buttonElevChan := make(chan int, 1)
-	stopChan := make(chan int, 1)
-	sensorChan := make(chan int, 1)
+	if Driver.Elev_init() {
+		
+		floorChan := make(chan string)
+		elevChan  := make(chan string) 
+		sensChan := make(chan string)
+		
+		go Driver.Driver(floorChan, elevChan, sensChan)
 
+		for {
+			select{
+				case msg := <-floorChan:
+					fmt.Println(msg)
 
-	go Driver.ElevPanelThread(buttonElevChan)
-	go Driver.SensorThread(sensorChan)
-	go Driver.StopThread(stopChan)
-	go Driver.FloorPanelThread(buttonFloorChan)	
-	
-	
-	Driver.Elev_init()
+				case msg := <-elevChan:
+					fmt.Println(msg)
 
+				case msg := <-sensChan:
+					fmt.Println(msg)
+			}
+		}
+	}
 	
-
-	bestilling := <- buttonElevChan
-	fmt.Println(bestilling)
-	//for {
-	//	
-	//	select{
-		// Hvordan ta imot verdier sendt over channels i case-blokkene??
-	//	case <- buttonElevChan:
-	//	case 2:
-	//	case 3:
-	//	case 4:
-	//	}
-	//}
+	fmt.Println("Error: Could not initiate driver")
 }
