@@ -17,46 +17,79 @@ import(
 
 
 const (
-	myIPadress string 
 	N_FLOORS int = 4
 	N_BUTTONS int = 3
+	localHost string = "127.241.187.255"
+	BRPORT string = "25556"
+	COMPORT string = "25557"
 	) 
-var infomap map[*UDPAddr]MyInfo 
+
+var localIP string = "0"
+var lowestIP string = "0"
+var masterIP string = "0"
+var infomap = make(map[*net.UDPAddr]Queue.ElevatorInfo)
+var addresses = make(map[string]time.Time)
 
 
 
+func Init(){
+	localIP = GetLocalIP()
+	adresses[localIP] = time.Now()
 
+}
+
+func GetLocalIP() (string){
+   addr, _ := net.ResolveTCPAddr("tcp4", "google.com:80")
+   conn, _ := net.DialTCP("tcp4", nil, addr)
+   return strings.Split(conn.LocalAddr().String(), ":")[0]
+}
+
+
+
+func Master() {
+
+}
+
+func Slave() {
+	
+}
+
+func SolvDeadMaster(){
+
+	localIP = lowestIP
+
+}
 func SendAliveMessageUDP(){
-	broadcastAliveaddr,_ := net.ResolveUDPAddr("udp", "127.241.187.255:25556")
+	broadcastAliveaddr,_ := net.ResolveUDPAddr("udp", localHost + BRPORT)
 	broadcastAliveSock,_ := net.DialUDP("udp", nil, broadcastAliveaddr)
-	time.Sleep(1*time.Second)
-	sendMsg := []byte("I'm Alive!!")
+	time.Sleep(10*time.Millisecond)
 	for {
-		buf,_ := json.Marshal(sendMsg)
-		_,err = broadcastAliveSock.Write(buf)
+		_,err = broadcastAliveSock.Write(localIP)
 		if err != nil{
 			panic(err)
 		}
-		time.Sleep(1*time.Second)
+		time.Sleep(10*time.Millisecond)
 	}
 }
 
-func SendInfoMessageUDP(info MyInfo, IPMaster string){
-	SendToMasteraddr,_ := net.ResolveUDPAddr("udp", IPMaster + "25557")
-	SendToMasterSock,err := net.DialUDP("udp", nil, SendToMasteraddr)
-	time.Sleep(1*time.Second)
+func SendInfoMessageUDP(info chan Queue.ElevatorInfo, IPMaster chan string){
+	addr,_ := net.ResolveUDPAddr("udp", <-IPMaster + COMPORT)
+	conn,err := net.DialUDP("udp", nil, addr)
+	time.Sleep(10*time.Millisecond)
 	for {
-		buf,_ := json.Marshal(info)
-		_,err = SendToMasterSock.Write(buf)
+		tempInfo := <-info
+		buf,_ := json.Marshal(tempInfo)
+		_,err = conn.Write(buf)
 		if err != nil{
 			panic(err)
 		}
-		time.Sleep(100*time.Millisecond)
+		time.Sleep(10*time.Millisecond)
 	}
+	conn.close()
 }
 
-func SendOrderMessageUDP(order chan MyOrder){
-	broadcastOrderaddr,_ := net.ResolveUDPAddr("udp", "127.241.187.255:25555")
+func SendOrderMessageUDP(order chan Queue.MyOrder){
+	broadcastOrderaddr,_ := net.ResolveUDPAddr("udp",  )
 	broadcastOrderSock,err := net.DialUDP("udp", nil, broadcastOrderaddr)
 	time.Sleep(1*time.Second)
 	for {
@@ -69,63 +102,74 @@ func SendOrderMessageUDP(order chan MyOrder){
 	}
 }
 
-func ListenUDP(port string){
-	buffer := make([]byte,1024) 
-	raddr,_ := net.ResolveUDPAddr("udp", port)
-	recieveSock,_ := net.ListenUDP("udp", raddr)
-	for {
-		msglen ,_,_ := recieveSock.ReadFromUDP(buffer)
-		var tempInfo Myinfo
-		json.Unmarshal(buffer[:mlen], &tempInfo)
-		Queue.Storeinfo(tempInfo)
-		time.Sleep(1*time.Second)
-	}
-}
-
-func recvInfoUDP(infochannel chan MyInfo, readyToRecv chan bool
-){
+func recvInfoUDP(readyToRecv chan bool){
 	buffer := make([]byte,1024) 
 	raddr,_ := net.ResolveUDPAddr("udp", ":25557")
 	recieveSock,_ := net.ListenUDP("udp", raddr)
 	for {
-		msglen ,_,_ := recieveSock.ReadFromUDP(buffer)
-		var tempInfo Myinfo
+		msglen , recvIP,_ := recieveSock.ReadFromUDP(buffer)
+		var tempInfo Queue.ElevatorInfo
 		json.Unmarshal(buffer[:mlen], &tempInfo)
 		if <-readyToRecv{ 
-			infochannel <- tempInfo
+			infomap[recvIP] = tempInfo
 			readyToRecv <- false
 		}
-		time.Sleep(1*time.Second)
+		time.Sleep(10*time.Millisecond)
 	}
+	recieveSock.close()
 }
 
-func recvOrderUDP(orderchannel chan MyOrder, readyToRecvOrder chan bool){
+func recvOrderUDP(orderchannel chan Queue.MyOrder, readyToRecvOrder chan bool){
 	buffer := make([]byte,1024) 
-	raddr,_ := net.ResolveUDPAddr("udp", "127.241.187.255:25555")
+	raddr,_ := net.ResolveUDPAddr("udp", localHost + BRPORT)
 	recieveSock,_ := net.ListenUDP("udp", raddr)
 	for {
-		msglen ,IPMaster,_ := recieveSock.ReadFromUDP(buffer)
+		msglen ,masterIP,_ := recieveSock.ReadFromUDP(buffer)
 		var tempOrder MyOrder
 		json.Unmarshal(buffer[:mlen], &tempOrder)
 		if <- readyToRecv{
 			orderchannel <- tempOrder
 			readyToRecv <- false
 		}
-		time.Sleep(1*time.Second)
+		time.Sleep(10*time.Millisecond)
 	}
+	recieveSock.close()
 }
 
+func Listen() {
+}
 
+func ReadAliveMessageUDP(boolvar bool){
+	addr,err := net.ResolveUDPAddr("udp", localHost+BRPORT)
+	if err != nil {
+		fmt.Println(err)
+		return
+	} 
+	conn, err := net.ListenUDP("udp", addr)
+	if err != nil {
+		fmt.Println(err)
+		return
+	} 
+	buffer := make([]byte(1024))
+	for {
+		conn.ReadFromUDP(buffer)
+		s := string(buffer[0:15]) //slipper nil i inlesningen
+		adresses[string(s)] = time.Now()
+		if s!= nil {
+			boolvar=true
+			for key, value := adresses{
+				if ((time.Now().Sub(value) > 100*time.Millisecond) && (key != localIP)){
+					delete(adresses,key)
 
-func recvAliveMessageUDP(alive string){
-	boolvar := true
-	buffer := make([]byte,1024) 
-	raddr,_ := net.ResolveUDPAddr("udp", "127.241.187.255:25555")
-	recievesock,_ := net.ListenUDP("udp", raddr)
-	for(boolvar)  {
-		mlen , _,_ := recievesock.ReadFromUDP(buffer)
-		alive = string(buffer[:mlen])
+				}
+			}
+		}
+		else{
+			boolvar=false
+		}
+		time.Sleep(10*time.Millisecond)
 	}
+	conn.close()
 }
 
 func EventManager_NetworkStuff() {  //Pseudokode
