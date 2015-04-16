@@ -1,6 +1,8 @@
 package Network
 import(
 	"fmt"
+	"os"
+	"net"
 	"Queue"
 	"time"
 	"encoding/json"
@@ -14,7 +16,13 @@ import(
 //
 
 
-const myIPadress string 
+const (
+	myIPadress string 
+	N_FLOORS int = 4
+	N_BUTTONS int = 3
+	) 
+var infomap map[*UDPAddr]MyInfo 
+
 
 
 
