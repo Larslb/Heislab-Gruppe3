@@ -37,9 +37,11 @@ func readSensors(sensorChan chan int){
 
 
 
+
+
 //func floorReached () {}
 
-func Driver(floorChan chan []int, elevChan [][]string ,sensChan []int){
+func Driver(){
 
 	buttonFloorChan := make(chan MyOrder)
 	buttonElevChan  := make(chan MyOrder) 
@@ -62,7 +64,7 @@ func Driver(floorChan chan []int, elevChan [][]string ,sensChan []int){
 				// HVA MED PRIORITERING??
 				Queue.SetInternalOrders(button.Floor)
 
-				floorChan <- Queue.GetInternalOrders()
+				// PRINT Queue.GetInternalOrders()
 				
 			case button := <-buttonFloorChan:
 				// 1. Sette bestilling i ekstern kø som må leses av Nettverk og
@@ -72,7 +74,7 @@ func Driver(floorChan chan []int, elevChan [][]string ,sensChan []int){
 				elev_set_button_lamp(button.ButtonType,button.Floor,1) 
 				Queue.SetExternalOrders(button.ButtonType, button.Floor)
 				
-				elevChan <- Queue.GetUnprExtOrd()
+				// Print Queue.GetUnprExtOrd()
 
 			
 			case sensor := <-sensorChan:
