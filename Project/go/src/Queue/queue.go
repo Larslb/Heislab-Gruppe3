@@ -69,16 +69,20 @@ func DeleteInternalOrder(floor int) {
 
 func SetInternalOrders(floor int){
 	for i := 0; i < len(internalOrders);i++{
-		if floor < internalOrders[i] {
-			internalOrders = append(internalOrders, floor)	// insert
+		if floor < internalOrders[i] && dir == 1 {
+			internalOrders = insert(internalOrders, floor, i)
+		}
+		if floor > internalOrders[i] && dir == -1 {
+			internalOrders = insert(internalOrders, floor, i+1)
 		}
 	}
 }
 
-func insert (floor, i int) ([]int) {
-	tmpSlice = internalOrders[:i]
+func insert (orders []int ,floor, i int) ([]int) {
+	// Kanskje vi må passe på størrelsen til orders slik at vi vet at i finnes i orders??
+	tmpSlice = orders[:i]
 	tmpSlice = append(tmpSlice, floor)
-	return append(tmpSlice, internalOrders[i:]...)
+	return append(tmpSlice, orders[i:]...)
 }
 
 func SetExternalOrders(button, fl int) {
