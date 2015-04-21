@@ -1,20 +1,13 @@
 package Queue
 
 
+// PLAN 21.04.15
 
-// 1. Hvordan representere køen? Map?
-// 2. Hva med retningsbit?
-// 3. Hvor bør variabler ligge? Queue, Driver?
-// 4. Hva gjør vi med bestillinger når en heis dør?
-//  --> interne kan slettes og externe må ha backup?
-
-// 5. Vi må ha en måte å behandle bestillinger vi ikke kjører forbi
-//  --> f.eks: Vi kan ikke bare kjøre kjøre fra 1. etasje til 4. etasje for å forsikre oss om at
-//     	       vi får med alle bestillinger
+// 1. Skrive ferdig fsm
+// 2. skrive ferdig setInternalOrders
+// 3. Lage findNextFloor
 
 
-
-// Variabler
 
 const (
 	N_BUTTONS int = 3
@@ -29,103 +22,106 @@ type MyInfo struct {
 }
 
 type MyOrder struct {
-	Ip string
+	FromIp string
+	// ToIp string
 	ButtonType int
 	Floor int
-	//Value int
 }
 
-
-
-
-
-// OVERSIKT OVER ALLE BESTILLINGER (MASTER)
-// 1. Den må kanskje oppdateres ettersom om en heis kobler seg på nettverket
-
-var ElevatorInfo map[string]map[int]bool  //string-key kan være IPadresse
-// allOrders = map[IPadresse]map[floor]struct{ direction(up/down), order(true/false) }
-
-
-
-
-var internalOrders []int
-// Shared variable??
-
-
-
-var externalOrders [2][N_FLOORS]string 
-
-var unprocessedExtOrders []MyOrder  // Bare midlertidig for å teste Driver
-
-
-
-
+type MyElev struct {
+	MessageType string
+	Order MyOrder
+	Info MyInfo
+}
 
 // Ikke ferdige funksjoner
 
-func DeleteInternalOrder(floor int) {
-	internalOrder[floor] = false
-}
-
-func SetInternalOrders(floor int){
-	for i := 0; i < len(internalOrders);i++{
-		if floor < internalOrders[i] && dir == 1 {
-			internalOrders = insert(internalOrders, floor, i)
+func setInternalOrder(iOrders []int, floor, dir int) ([]int) {
+	if dir == 1 {
+		// If floor - current position < 0, then append at back
+		// if floor - current position = 0, open door
+		for i := 0; i < len(iOrders); i++ {
+			if floor < iOrders[i]{
+				return insert(iOrders, floor, i)
+			}
+		
 		}
-		if floor > internalOrders[i] && dir == -1 {
-			internalOrders = insert(internalOrders, floor, i+1)
+	} else if dir == -1 {
+		// If current position - floor < 0, then append at back
+		// if current position - floor = 0, then open door
+		for i := 0; i < len(iOrders); i++{
+			if floor > iOrders[i] {
+				return insert(iOrders, floor, i)
+			}
+		}
+	}
+	return append(iOrders, floor)
+}
+
+func queue_manager(intrOrd chan int, extrOrd chan myOrder, dirOrNF chan int, deleteOrdFloor chan int, reqInfo chan myInfo, msg chan string){
+
+	tmpDir := 0
+	tmpCurrentFloor := -1
+
+	internalOrders := []int{}
+	externalOrders := [2][N_FLOORS]string{}   // [0][...] er opp bestillinger og [1][...] er ned bestillinger
+	
+	for {
+		select{
+		case order := <- intrOrd:
+			internalOrders = setInternalOrder(internalOrders, order, tmpDir)
+			// SEND OPPDATERT INFO
+			
+		case order := <- extrOrd:
+			externalOrders = setExternalOrder(externalOrders, order)
+		
+		// DOBBELTSJEKK AT DENNE KANALEN ALDRI BLIR OVERFYLT
+		case tmpCurrentFloor = <-dirOrNF: // Bedre navnsetting på channel?
+			dirOrNF <- nextOrder(internalOrders, externalOrders, dir)
+			if dir := <-dirOrNF; dir != tmpDir{ // Hvis retningen har endret seg
+				tmpDir = dir
+				// SEND OPPDATERT INFO
+				// reqInfo <- MyInfo{
+				//		Ip: myIP,
+				//		Dir: tmpDir,
+				//		InternalOrders: internalOrders,
+				//		}
+			}
+			
+			
+		case deleteOrder := <- deleteOrdFloor:
+		
+			internalOrders = internalOrders[1:]
+			if tmpDir == 1 {
+				externalOrders[BUTTON_CALL_UP][deleteOrder] = ""
+			} else if tmpDir == -1 {
+				externalOrders[BUTTON_CALL_DOWN][deleteOrder] = ""
+			}
+			
+			// else ?
+			
+			// SEND OPPDATERT INFO
+			// reqInfo <- MyInfo{
+			//		Ip: myIP,
+			//		Dir: tmpDir,
+			//		InternalOrders: internalOrders,
+			//		}
 		}
 	}
 }
-
-func insert (orders []int ,floor, i int) ([]int) {
-	// Kanskje vi må passe på størrelsen til orders slik at vi vet at i finnes i orders??
-	tmpSlice = orders[:i]
-	tmpSlice = append(tmpSlice, floor)
-	return append(tmpSlice, orders[i:]...)
-}
-
-func SetExternalOrders(button, fl int) {
-	extOrd := MyOrder{
-		buttonType:	button
-		floor:		fl
-	}
-
-	unprocessedExtOrders = append(externalOrders, extOrd)
-}
-
-func CheckFloor(floor int) (bool){ // Kan brukes til å plukke opp bestillinger på veien
-	return internalOrders[floor]
-}
-
-func Delete_all_internalOrders(){
-	for i,_:= range internalOrders{
-		DeleteInternalOrder(i)
-	}
-}
-
-
-// Midlertidige testfunksjoner
-
-func GetUnprExtOrd() []MyOrder {
-	return unprocessedExtOrders
-}
-
-func GetInternalOrders() []int {
-	return internalOrders
-}
-
-
 
 // Ferdige funksjoner
-func initexternalOrders() {
-	for i:=0;i<2;i++{
-		for j:=0;j<N_FLOORS;j++{
-			externalOrders[i][j] == ""		
-		}		
-	}
+
+func insert (orders []int ,floor, i int) ([]int) {  // FUNKER BRA!
+	tmp := make([]int, len(orders[:i]), len(orders)+1)
+	copy(tmp, orders[:i])
+	tmp = append(tmp, floor)
+	tmp = append(tmp, internalOrders[i:]...)
+	return tmpSlice
 }
 
-
-
+func setExternalOrder(eOrders [2][N_FLOORS]string, order MyOrder) ([2][N_FLOORS]string) {
+	eOrders[order.ButtonType][order.Floor] = order.Ip
+	return eOrders	
+}
 
