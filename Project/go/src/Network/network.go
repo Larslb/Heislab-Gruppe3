@@ -36,7 +36,7 @@ var boolvar bool = false
 
 
 
-func Init(){
+func Init(localipch chan string){
 	localIP,localconn = GetLocalIP()
 	adresses[localIP] = time.Now()
 	infomap[localconn] = nil
@@ -46,7 +46,7 @@ func Init(){
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////Logiske funksjoner//////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
-func GetLocalIP() (string,*net.UDPAddr){
+func GetLocalIP() (string,*net.TCPConn){
    addr, _ := net.ResolveTCPAddr("tcp4", "google.com:80")
    conn, _ := net.DialTCP("tcp4", nil, addr)
    return strings.Split(conn.LocalAddr().String(), ":")[0],conn
@@ -180,9 +180,8 @@ func Master(writeToSocketMap chan bool, recvInfo chan queue.MyInfo, recvOrder ch
 	var orders := []queue.MyOrder{}
 	sendorder := make(chan queue.MyOrder)
 	time.Sleep(100*time.Millisecond)
-	writeToSocketMap <- false
-	read <- true
-	go ReadALL(read, recvInfo, recvOrder)
+	writeToSocketmap <- false
+	go ReadALL(writeToSocketmap, recvInfo, recvOrder)
 	for {
 
 		if (!boolvar) {
@@ -192,21 +191,24 @@ func Master(writeToSocketMap chan bool, recvInfo chan queue.MyInfo, recvOrder ch
 		}
 
 		select{
-			case NewInfo <-recvInfo:
+			case NewInfo := <-recvInfo:
 				//OPPDATERE INFOMAP MED INFOEN MOTTATT PÅ SOCKET
 				infomap[NewInfo.IPadresse] = NewInfo
-			case NewOrder <-recvOrder:
+			case NewOrder := <-recvOrder:
 				//SENDE UT NY ORDRE TIL ALLE
 				orders = append(orders, NewOrder)
 				handledorder = orderhandler(orders)
 
 				broadCastOrder(handledorder)
 
-			case order <- PanelOrder:
+			case order := <- PanelOrder:
 
 				handledorder = orderhandler(order)
-				broadCastOrder(handledorder)
 
+				if handledorder.IPadresse == localIP {
+					extOrder <- handledorder
+				}
+				broadCastOrder(handledorder)
 		}
 		
 
@@ -256,26 +258,44 @@ func Master(writeToSocketMap chan bool, recvInfo chan queue.MyInfo, recvOrder ch
 
 }
 
-func orderhandler(order queue.MyOrder) {
+func orderhandler(order queue.MyOrder)(string) {
 
+	var besteheis := make(map[string]int){}
 
 	for key,value := range infomap{
-		if value.internalOrders == nil {
-			
+		if  value.CurrentFloor == order.Floor{
+			besteheis[
+			return besteheis
 		}
-		if order.ButtonType == elev.BUTTON_CALL_UP {
-			
-		}
+
 		if  {
 			
 		}
+		/*
+		else if value.internalOrders == nil {
+			
+		}
+		else if order.ButtonType == elev.BUTTON_CALL_UP {
+
+		}
+		else if  order.ButtonType == elev.BUTTON_CALL_DOWN{
+
+		}
+		if value.internalOrders[0] == order.Floor && value.dir == {
+			
+		}
+		)
+		for i := 0; i < len(value.internalOrders); i++ {
+			if value.internalOrders[i] == order.Floor && value.dir 
+				
+			}
+		}*/
 	}
-	
 }
 
-func ReadALL(read chan bool, chan recvInfo queue.MyInfo, chan recvOrder queue.MyInfo) {
+func ReadALL(writing chan bool, chan recvInfo queue.MyInfo, chan recvOrder queue.MyInfo) {
 	for _,connection := range socketmap{
-		if <-read {
+		if !(<-writing) {
 			buffer := make([]byte,1024)
 			msglen ,_:= connection.Read(buffer)
 			var temp queue.MyElev
@@ -316,13 +336,13 @@ func Slave(chan sendInfo queue.MyInfo, extOrder chan queue.MyOrder, Panelorder c
 		for {
 
 			select{
-			case NewOrder <- recievechannel:
+			case NewOrder := <- recievechannel:
 				if (NewOrder.IPadresse == localIP) {
 					extOrder <-NewOrder
 				}
-			case NewPanelOrder <- Panelorder:
+			case NewPanelOrder := <- Panelorder:
 				//newOrder needs to be sent to mastersocket
-			case InfoUpdate <- sendInfo:
+			case InfoUpdate := <- sendInfo:
 				//send Info to mastersocket
 			}
 		}
@@ -355,6 +375,8 @@ func TCPAccept(writeToSocket chan bool) {
 		if (!boolvar) {
 			return 
 		}
+
+		writeToSocket<- false
 	}
 }
 
@@ -391,7 +413,7 @@ func EventManager_NetworkStuff(writeToSocketmap chan bool) {
 			fmt.Println("Im Master")
 			boolvar = true
 			writeToSocketmap <- true
-			go AcceptTCP()
+			go AcceptTCP(writeToSocketmap)
 			go master(writeToSocketmap)
 			}
 
