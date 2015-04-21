@@ -79,49 +79,51 @@ func Fsm(dirOrNextFloor chan int, deleteOrderOnFloor chan int, currentFloor chan
 					
 				} else if next_floor == current_floor {
 					
-					dirOrNextFloor <- direction // QM venter på direction, så vi må sende her også
+					dirOrNextFloor <- direction
 					STATE = OPEN_DOOR
 					
-				} else if next_floor == -1 { //Ingen bestillinger i internalOrders eller externalOrder i direction
+				} else if next_floor == -1 {
 					
 					direction = 0
 					dirOrNextFloor <- direction
-					// QM må huske på å returnere -1 dersom internal/external orders er tom for bestillinger
-					//time.Sleep(???) for å ikke overbelaste QM med requests
+					
+					//time.Sleep() for å ikke overbelaste QM med requests
 				
 				}
 				
 			case MOVING:
 			
 				current_floor = <- sensorChan
-				
-				// DENNE KANALEN OG KOMMUNISERINGEN MED QM ER LITT ... mjeee..
-				// 1. fsm sender sin current_floor til QM (oppdaterer tmpCurrent_floor)
-				// 2. QM sender tilbake next_floor ved å sjekke internalOrders og externalOrders
-				// 3. fsm mottar next_floor og sender tilbake direction til QM som oppdaterer tmpDir
-				
-				
-				currentFloor <- current_floor // Vi spør QM om vi skal plukke opp noen i denne etasjen
-				next_floor <- dirOrnextFloor	  // Vi mottar next_floor (enten er det den samme som før, eller en ny)
-				dirOrNextFloor <- direction	  // Vi sender tilbake direction
+	
+				currentFloor <- current_floor
+				next_floor <- dirOrnextFloor
+				dirOrNextFloor <- direction
 				
 				if current_floor == next_floor {
 					STATE = DOOR_OPEN
 				}
 				
-				
 			case OPEN_DOOR:
 				elev_set_motor_direction(0)
 				elev_set_door_open_lamp(true)
-				// Open door for 3 seconds -> then elev_set_door_open_lamp(false)
-				// (Hva gjør vi hvis knapp i samme etasje trykkes inn?) -> dørene skal vel ikke lukkes?
+				t := time.Now()
+				for(!t.After(3*time.Seconds){
+					currentFloor <- current_floor
+					next_floor <- dirOrnextFloor
+					dirOrNextFloor <- direction
+
+					if current_floor == next_floor{
+						t = time.Now()
+					}
+				}
+				elev_set_door_open_lamp(false)				
 
 				deleteOrderOnFloor <- current_floor
-				ordersDeleted := <-deleteOrderOnFloor // continue when orders are deleted
+				ordersDeleted := <-deleteOrderOnFloor
 				
 				// SLETTE LYS
 				if direction == 1{
-					elev_set_button_lamp(BUTTON_CALL_UP, current_floor,0)  // Hva med value = false/true  i stedet for 0/1?
+					elev_set_button_lamp(BUTTON_CALL_UP, current_floor,0)
 					elev_set_button_lamp(BUTTON_COMMAND, current_floor,0)
 				} else {
 					elev_set_button_lamp(BUTTON_CALL_DOWN, current_floor, 0)
