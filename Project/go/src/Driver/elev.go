@@ -5,6 +5,12 @@ const (
 	BUTTON_CALL_UP int = 0
 	BUTTON_CALL_DOWN int = 1
 	BUTTON_COMMAND int = 2
+	
+	WAIT int = 0
+	UP int = 1
+	DOWN int = 2
+	// MOVING int = ...
+	OPEN_DOOR int = 3
 )
 
 var lamp_channel_matrix = [N_FLOORS][N_BUTTONS]int {
