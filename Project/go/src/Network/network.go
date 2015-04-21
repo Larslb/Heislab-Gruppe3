@@ -20,7 +20,7 @@ import(
 const (
 	N_FLOORS int = 4
 	N_BUTTONS int = 3
-	localHost string = "127.241.187.255"
+	localHost string = "129.241.187.255"
 	BRALIVE string = "25556"
 	BRORDER string = "25555"
 	tcpPort string = "25557"
@@ -175,12 +175,12 @@ func RecieveOrders(readyToRecv chan bool, orderchannel queue.MyOrder) {
 //////////////////////////TCP funksjoner/////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-func Master(writeToSocketMaprecvInfo chan queue.MyInfo, recvOrder chan queue.MyOrder, extOrder chan string , read chan bool, PanelOrder chan queue.MyOrder) {
+func Master(writeToSocketMap chan bool, recvInfo chan queue.MyInfo, recvOrder chan queue.MyOrder, extOrder chan string , read chan bool, PanelOrder chan queue.MyOrder) {
 
 	var orders := []queue.MyOrder{}
 	sendorder := make(chan queue.MyOrder)
 	time.Sleep(100*time.Millisecond)
-	writeToSocket <- false
+	writeToSocketMap <- false
 	read <- true
 	go ReadALL(read, recvInfo, recvOrder)
 	for {
@@ -196,20 +196,17 @@ func Master(writeToSocketMaprecvInfo chan queue.MyInfo, recvOrder chan queue.MyO
 				//OPPDATERE INFOMAP MED INFOEN MOTTATT PÅ SOCKET
 				infomap[NewInfo.IPadresse] = NewInfo
 			case NewOrder <-recvOrder:
-				read<-false
 				//SENDE UT NY ORDRE TIL ALLE
 				orders = append(orders, NewOrder)
 				handledorder = orderhandler(orders)
 
-				for _,socket := range socketmap{
-					sendorder(socket, handledorder)
-				}
-				read<-true
+				broadCastOrder(handledorder)
 
 			case order <- PanelOrder:
 
 				handledorder = orderhandler(order)
 				broadCastOrder(handledorder)
+
 		}
 		
 
@@ -302,7 +299,7 @@ func ReadOrders(chan recvOrder queue.MyOrder){
 		var tempOrder
 	}
 }
-func Slave(chan recvInfo queue.MyOrder, extOrder chan queue.MyOrder, Panelorder chan queue.MyOrder, readyToRecv chan bool) {
+func Slave(chan sendInfo queue.MyInfo, extOrder chan queue.MyOrder, Panelorder chan queue.MyOrder, readyToRecv chan bool) {
 	var masterSocket *net.TCPConn 
 	var connected bool = false
 	for(connected==false){
@@ -324,7 +321,9 @@ func Slave(chan recvInfo queue.MyOrder, extOrder chan queue.MyOrder, Panelorder 
 					extOrder <-NewOrder
 				}
 			case NewPanelOrder <- Panelorder:
-				sendtoMastersocket()
+				//newOrder needs to be sent to mastersocket
+			case InfoUpdate <- sendInfo:
+				//send Info to mastersocket
 			}
 		}
 		
@@ -376,105 +375,6 @@ func ConnectToIP(IP string)(*net.TCPConn, bool){
 
 ///////////////////////////////diverse funksjoner/////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
-
-
-func RecieveOrders(chan recvorder queue.MyOrder) {
-	for {
-		for socket,_ := range socketmap{
-			recvorder <- ReadOrder(socket)
-
-		}
-	}
-}
-func SendInfoMessageUDP(info chan Queue.MyInfo, socket *net.TCPConn ){
-	time.Sleep(10*time.Millisecond)
-	for {
-		tempInfo := <-info
-		buf,_ := json.Marshal(tempInfo)
-		_,err = socket.Write([]byte(buf))
-		if err != nil{
-			panic(err)
-		}
-		time.Sleep(10*time.Millisecond)
-	}
-	conn.close()
-}
-
-
-func SendOrder(socket *net.TCPConn, order queue.MyOrder) {
-	buffer := json.Marshal(order)
-	_,err = socket.Write(buf)
-	if err != nil{
-		panic(err)
-	}
-	
-}
-
-func SendOrderMessageUDP(order chan Queue.MyOrder){
-	broadcastOrderaddr,_ := net.ResolveUDPAddr("udp",  )
-	broadcastOrderSock,err := net.DialUDP("udp", nil, broadcastOrderaddr)
-	time.Sleep(1*time.Second)
-	for {
-		tmpOrder := <- order
-		buf,_ := json.Marshal(tmpOrder)
-		_,err = broadcastOrderSock.Write(buf)
-		if err != nil{
-			panic(err)
-		}
-	}
-	broadcastOrderSock.close()
-}
-
-func recvInfoUDP(readyToRecv chan bool, recvIP string){
-	buffer := make([]byte,1024) 
-	raddr,_ := net.ResolveUDPAddr("udp", recvIP + COMPORT)
-	recieveSock,_ := net.ListenUDP("udp", raddr)
-	for {
-		msglen , _,_ := recieveSock.ReadFromUDP(buffer)
-		var tempInfo Queue.ElevatorInfo
-		json.Unmarshal(buffer[:mlen], &tempInfo)
-		if <-readyToRecv{ 
-			infomap[recvIP] = tempInfo
-			readyToRecv <- false
-		}
-		time.Sleep(10*time.Millisecond)
-	}
-	recieveSock.close()
-}
-
-func ReadInfo(socket *net.TCPConn)queue.MyInfo{
-	buffer := make([]byte,1024)
-	msglen ,_:= socket.Read(buffer)
-	var tempInfo queue.MyInfo
-	json.Unmarshal(buffer[:msglen], &tempInfo)
-	return tempInfo
-}
-
-func ReadOrder(socket *net.TCPConn)queue.MyOrder{
-	buffer := make([]byte,1024)
-	msglen ,_:= socket.Read(buffer)
-	var tempOrder queue.MyOrder
-	json.Unmarshal(buffer[:msglen], &tempOrder)
-	return tempOrder
-}
-
-
-func recvOrderUDP(orderchannel chan Queue.MyOrder, readyToRecvOrder chan bool){
-	buffer := make([]byte,1024) 
-	raddr,_ := net.ResolveUDPAddr("udp", localHost + BRPORT)
-	recieveSock,_ := net.ListenUDP("udp", raddr)
-	for {
-		msglen ,_,_ := recieveSock.ReadFromUDP(buffer)
-		var tempOrder MyOrder
-		json.Unmarshal(buffer[:mlen], &tempOrder)
-		if <- readyToRecv{
-			orderchannel <- tempOrder
-			readyToRecv <- false
-		}
-		time.Sleep(10*time.Millisecond)
-	}
-	recieveSock.close()
-}
 
 
 func EventManager_NetworkStuff(writeToSocketmap chan bool) {  
