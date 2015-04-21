@@ -58,10 +58,10 @@ func setInternalOrder(iOrders []int, floor, dir int) ([]int) {
 	return append(iOrders, floor)
 }
 
-func queue_manager(intrOrd chan int, extrOrd chan myOrder, dirOrNF chan int, deleteOrdFloor chan int, reqInfo chan myInfo, msg chan string){
+func queue_manager(intrOrd chan int, extrOrd chan myOrder, dirOrNF chan int, deleteOrdFloor chan int, reqInfo chan myInfo, currentFloor chan int){
 
 	tmpDir := 0
-	tmpCurrentFloor := -1
+	tmpCurrent_floor := -1
 
 	internalOrders := []int{}
 	externalOrders := [2][N_FLOORS]string{}   // [0][...] er opp bestillinger og [1][...] er ned bestillinger
@@ -76,7 +76,7 @@ func queue_manager(intrOrd chan int, extrOrd chan myOrder, dirOrNF chan int, del
 			externalOrders = setExternalOrder(externalOrders, order)
 		
 		// DOBBELTSJEKK AT DENNE KANALEN ALDRI BLIR OVERFYLT
-		case tmpCurrentFloor = <-dirOrNF: // Bedre navnsetting på channel?
+		case tmpCurrent_floor = <-currentFloor: // Bedre navnsetting på channel?
 			dirOrNF <- nextOrder(internalOrders, externalOrders, dir)
 			if dir := <-dirOrNF; dir != tmpDir{ // Hvis retningen har endret seg
 				tmpDir = dir

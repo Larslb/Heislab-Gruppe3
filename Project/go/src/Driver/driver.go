@@ -35,7 +35,7 @@ func readSensors(sensorChan chan int){
 	}
 }
 
-func Fsm(dirOrNextFloor chan int, deleteOrderOnFloor chan int) { // skal være i drivermodulen
+func Fsm(dirOrNextFloor chan int, deleteOrderOnFloor chan int, currentFloor chan int) { // skal være i drivermodulen
 
 	current_floor := -1 // initielt (må settes av ELEV_INIT)
 	direction     := 0  // initielt
@@ -57,23 +57,10 @@ func Fsm(dirOrNextFloor chan int, deleteOrderOnFloor chan int) { // skal være i
 	for {
 		switch STATE {
 		
-		// BIG PROBLEMS:
-		// 1. Vi må kunne oppdatere next_floor samtidig som heisen håndterer den nåværende next_floor
-		// 	-> f.eks hvis vi er i 4. etg og next_floor blir satt til 1. etg. På veien får vi en bestilling i 2.etg.
-		//	   Da må vi kunne sette next_floor på nytt!
-		
-		//WAIT:
-		//	1. Vi må sjekke om det er en ny bestilling i internalOrders eller externalOrders
-			
-		// UP or DOWN:
-		//	1. Sette motor_direction
-		//	2. kontinuerlig sjekke om det er kommet en ny next_floor!
-		//		-> kan gjøre det slik at når QM får en ny bestilling, så sjekker den om denne ordren skal bli den nye next floor
-		//	3. sjekke når vi har kommet til next_floor
 		
 			case WAIT:
 				
-				dirOrNextFloor <- current_floor
+				currentFloor <- current_floor
 				next_floor = <-dirOrNextFloor
 				
 				if next_floor < current_floor {
@@ -104,34 +91,6 @@ func Fsm(dirOrNextFloor chan int, deleteOrderOnFloor chan int) { // skal være i
 				
 				}
 				
-			//case UP:
-				
-				// elev_set_motor_direction(direction)
-				// KJØR OPP SÅ LENGE VI IKKE HAR KOMMET TIL NEXT FLOOR
-				// for {
-				//	current_floor <- readSensors
-				//	elev_set_floor_indicator(current_floor)
-				//	if current_floor == next_floor{
-				//		STATE = OPEN_DOOR
-				//		break
-				//	}
-				// }
-				
-			//case DOWN:
-				//elev_set_motor_direction(direction)
-				
-				// KJØR NED SÅ LENGE VI IKKE HAR KOMMET TIL NEXT FLOOR
-				//for {
-				//	current_floor <- readSensors
-				//	elev_set_floor_indicator(current_floor)
-				//	if current_floor == next_floor{
-				//		STATE = OPEN_DOOR
-				//		break
-				//	}
-				//}
-			
-			
-			// ALTERNATIVT til UP og DOWN... 
 			case MOVING:
 			
 				current_floor = <- sensorChan
@@ -142,7 +101,7 @@ func Fsm(dirOrNextFloor chan int, deleteOrderOnFloor chan int) { // skal være i
 				// 3. fsm mottar next_floor og sender tilbake direction til QM som oppdaterer tmpDir
 				
 				
-				dirOrNextFloor <- current_floor // Vi spør QM om vi skal plukke opp noen i denne etasjen
+				currentFloor <- current_floor // Vi spør QM om vi skal plukke opp noen i denne etasjen
 				next_floor <- dirOrnextFloor	  // Vi mottar next_floor (enten er det den samme som før, eller en ny)
 				dirOrNextFloor <- direction	  // Vi sender tilbake direction
 				
