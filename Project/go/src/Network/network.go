@@ -201,61 +201,16 @@ func Master(writeToSocketMap chan bool, recvInfo chan queue.MyInfo, recvOrder ch
 
 				broadCastOrder(handledorder)
 
-			case order := <- PanelOrder:
+			case Ownorder := <- PanelOrder:
 
-				handledorder = orderhandler(order)
+				handledorder = orderhandler(Ownorder)
 
 				if handledorder.IPadresse == localIP {
 					extOrder <- handledorder
 				}
 				broadCastOrder(handledorder)
 		}
-		
-
-
-		/*
-		if (!boolvar) {
-			fmt.Println("Going Slavemode")
-			return //return stopper threaden
-		}
-
-		recInfo <- queue.MyInfo{}
-		infomap[localconn] = <- recvInfo
-		go RecieveOrders(recvOrder, orders)
-		sendorder := make(chan queue.MyOrder)
-		//Trenger en kanal for å legge til egne bestillinger fra internkø
-
-		//LESER INN INFO FRA ALLE HEISENE OG OPPDATERER INFOMAPET
-		for _,connection := range socketmap{
-			info := ReadInfo(connection)
-			infomap[connection.RemoteAddr()] = info
-		}
-
-		//LESER INN ORDRE FRA ALLE HEISENE OG LEGGER DET I EN EGEN LISTE
-		for socket,_ := range socketmap{
-			orders[socket]<-recvOrder
-		}
-
-		// må ta in en kanal
-		//costfunksjon
-		
-		for _,socket := range socketmap {
-			tempOrder <- sendorder
-			json
-			socket.Write([]byte())
-			//sende orderen til alle, med info om hvem som skal ta seg av ordren
-		}
-		*/
-
-
 	}
-
-
-	//leser inn info fra heiser
-	//leser inn ordre fra heiser.. Kanskje en kanal som står å venter på ordre fra riktig port?
-	//kjører costfunksjon
-	//Broadcaster orderen til alle, med rett IP 
-
 }
 
 func orderhandler(order queue.MyOrder)(string) {
@@ -294,16 +249,19 @@ func orderhandler(order queue.MyOrder)(string) {
 }
 
 func ReadALL(writing chan bool, chan recvInfo queue.MyInfo, chan recvOrder queue.MyInfo) {
-	for _,connection := range socketmap{
-		if !(<-writing) {
+	for  {
+		<-writing
+		for _,connection := range socketmap{
 			buffer := make([]byte,1024)
 			msglen ,_:= connection.Read(buffer)
-			var temp queue.MyElev
+			var temp Queue.MyElev
 			json.Unmarshal(buffer[:msglen], &temp)
-			if tempInfo.MessageType == "INFO" {
+			if temp.MessageType == "INFO" {
 				recvInfo <-temp.Info
-			}else if tempInfo.MessageType == "ORDER" {
+				writing<-1
+			}else if temp.MessageType == "ORDER" {
 				recvOrder <-temp.Order
+				writing<-1
 			}else{
 				continue
 			}
@@ -357,7 +315,7 @@ func Slave(chan sendInfo queue.MyInfo, extOrder chan queue.MyOrder, Panelorder c
 	//setter inn bestilling i queue med hvilken IP som skal di
 
 
-func TCPAccept(writeToSocket chan bool) {
+func TCPAccept(writeToSocket chan int) {
 	listenAddr, error := net.ResolveTCPAddr("tcp4", localIP+tcpPort)
 	if error != nil {
 		fmt.Println(error)
@@ -367,16 +325,16 @@ func TCPAccept(writeToSocket chan bool) {
 		fmt.Println(error)
 	}
 	for{
+		<-writeToSocket
 		listener.SetDeadline(time.Now().Add(time.Millisecond*100))
 		remoteConn, error := listener.AcceptTCP()
-		if (error == nil && <-writeToSocket){
+		if (error == nil){
 			socketmap[strings.Split(remoteConn.RemoteAddr().String(), ":")[0]] = remoteConn
 		}
 		if (!boolvar) {
 			return 
 		}
-
-		writeToSocket<- false
+		writeToSocket<-1
 	}
 }
 
@@ -399,10 +357,11 @@ func ConnectToIP(IP string)(*net.TCPConn, bool){
 /////////////////////////////////////////////////////////////////////////////////////
 
 
-func EventManager_NetworkStuff(writeToSocketmap chan bool) {  
+func EventManager_NetworkStuff() {  
 
 	time.Sleep(1*time.Second)
 	master = SolvMaster()
+	writeToSocketmap := make(chan int,1)
 	if (!master) {
 		boolvar = true		
 	}
@@ -412,7 +371,6 @@ func EventManager_NetworkStuff(writeToSocketmap chan bool) {
 			if (!boolvar) {
 			fmt.Println("Im Master")
 			boolvar = true
-			writeToSocketmap <- true
 			go AcceptTCP(writeToSocketmap)
 			go master(writeToSocketmap)
 			}
