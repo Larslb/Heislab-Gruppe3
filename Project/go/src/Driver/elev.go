@@ -1,17 +1,9 @@
 package Driver
 
 
-const (
-	BUTTON_CALL_UP int = 0
-	BUTTON_CALL_DOWN int = 1
-	BUTTON_COMMAND int = 2
-	
-	WAIT int = 0
-	MOVING int = 1
-	OPEN_DOOR int = 2
-)
 
-var lamp_channel_matrix = [N_FLOORS][N_BUTTONS]int {
+
+var lamp_channel_matrix = [ElevTypeN_FLOORS][N_BUTTONS]int {
 {LIGHT_UP1, LIGHT_DOWN1, LIGHT_COMMAND1},
 {LIGHT_UP2, LIGHT_DOWN2, LIGHT_COMMAND2},
 {LIGHT_UP3, LIGHT_DOWN3, LIGHT_COMMAND3},
@@ -28,28 +20,33 @@ var button_channel_matrix = [N_FLOORS][N_BUTTONS]int {
 
 
 
-func Elev_init() bool {
+func elev_init(sensorChan chan int) (int, bool) {
 	if(io_init() != 1){
-		return 0;
+		return -1, false;
 	}
+
+	elev_set_stop_lamp(false)
+	elev_set_door_open_lamp(false)
 
 	for i := 0;i<N_FLOORS;i++{
 		if(i !=0){
 			elev_set_button_lamp(BUTTON_CALL_DOWN,i,0)
 		}
 		
-		if(i != N_FLOORS -1){
+		if(i != N_FLOORS-1){
 			elev_set_button_lamp(BUTTON_CALL_UP,i,0)
 		}
 
 		elev_set_button_lamp(BUTTON_COMMAND,i,0)
 	}
+	
+	elev_set_motor_direction(-1)
+	
+	current_floor := <- sensorChan
+	elev_set_motor_direction(0)
+	elev_set_floor_indicator(current_floor)
 
-	elev_set_stop_lamp(false)
-	elev_set_door_open_lamp(false)
-	elev_set_floor_indicator(0)
-
-	return true
+	return current_floor, true
 }
 
 func elev_set_motor_direction(dir int){
@@ -74,28 +71,6 @@ func elev_set_door_open_lamp(value bool){
 	}
 
 }
-
-
-
-
-func elev_get_obstruction_signal(obstrChan chan int){
-	obstrChan <- io_read_bit(OBSTRUCTION)
-
-}
-
-func elev_get_stop_signal(stopChan chan int) {
-	stopChan <- io_read_bit(STOP)
-}
-
-func elev_set_stop_lamp(value int){
-	if value{
-		io_set_bit(LIGHT_STOP)
-	} else{
-		io_clear_bit(LIGHT_STOP)
-	}
-}
-
-
 
 func elev_get_floor_sensor_signal(sensorchan chan int) {
 	if(io_read_bit(SENSOR_FLOOR1)==1){

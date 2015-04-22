@@ -1,29 +1,12 @@
 package Queue
 
-const (
-	N_BUTTONS int = 3
-	N_FLOORS int = 4
+import(
+	"time"
+	"ElevLib"
 )
 
-type MyInfo struct {
-	Ip string
-	Dir int
-	CurrentFloor int
-	InternalOrders []int
-}
 
-type MyOrder struct {
-	FromIp string
-	// ToIp string
-	ButtonType int
-	Floor int
-}
-
-type MyElev struct {
-	MessageType string
-	Order MyOrder
-	Info MyInfo
-}
+var localIp string
 
 func setInternalOrder(iOrders []int, floor, currentFloor, dir int) ([]int) {
 	if dir == 1 {
@@ -55,7 +38,7 @@ func setInternalOrder(iOrders []int, floor, currentFloor, dir int) ([]int) {
 	return append(iOrders, floor)
 }
 
-func insert (orders []int ,floor, i int) ([]int) {
+func insert(orders []int ,floor, i int) ([]int) {
 	tmp := make([]int, len(orders[:i]), len(orders)+1)
 	copy(tmp, orders[:i])
 	tmp = append(tmp, floor)
@@ -63,115 +46,133 @@ func insert (orders []int ,floor, i int) ([]int) {
 	return tmpSlice
 }
 
-func setExternalOrder(eOrders [2][N_FLOORS]string, order MyOrder) ([2][N_FLOORS]string) {  // HVORDAN ER DET MED BUTTONTYPE NÅR BUTTON_CALL_UP OG BUTTON_CALL_DOWN IKKE LIGGER I QUEUE???
+func setExternalOrder(eOrders [2][N_FLOORS]string, order ElevLib.MyOrder) ([2][N_FLOORS]string) {
 	eOrders[order.ButtonType][order.Floor] = order.Ip
 	return eOrders
 }
 
-func nextOrder(iOrder int, eOrders [2][N_FLOORS]string, currentFloor int, dir int) int {
+func nextOrder(iOrder []int, eOrders [2][N_FLOORS]string, currentFloor int, dir int) int {
 	
 	if iOrder == [] {	
 		if dir == 1 {
 			for floor := currentFloor; floor < N_FLOORS ; floor++ {
-				if eOrders[0][floor] == Network.LocalIp { // HVORDAN GJØR VI DET HER?? HAR VI LAGRET MyIp?
+				if eOrders[0][floor] == localIp { 
 					return floor
 				} else {
-					return -1 // NO ORDERS PENDING
+					return -1
 				}
 			}
 		} else if dir == -1 {
 			for floor := currentFloor; floor > -1 ; floor-- {
-				if eOrders[1][floor] == Network.LocalIp { // HVORDAN GJØR VI DET HER?? HAR VI LAGRET MyIp?
+				if eOrders[1][floor] == localIp { 
 					return floor
 				} else {
-					return -1 // NO ORDERS PENDING
+					return -1
 				}
 			}
 		} else if dir == 0 {
 			for floor := currentFloor; floor < N_FLOORS ; floor++ {
-				if eOrders[0][floor] == Network.LocalIp { // HVORDAN GJØR VI DET HER?? HAR VI LAGRET MyIp?
+				if eOrders[0][floor] == localIp { 
 					return floor
 				} else {
-					return -1 // NO ORDERS PENDING
+					return -1
 				}
+			}
 			for floor := currentFloor; floor > -1 ; floor-- {
-				if eOrders[1][floor] == Network.LocalIp { // HVORDAN GJØR VI DET HER?? HAR VI LAGRET MyIp?
+				if eOrders[1][floor] == localIp { 
 					return floor
 				} else {
-					return -1 // NO ORDERS PENDING
+					return -1
 				}
 			}
 			
-		} // else -> ERROR
+		} else {fmt.Println("ERROR: nextOrder bæsj ")
+			return -1
+			}
 	}
 
 
 	tmpNextOrder = iOrder[0]
 	
 	if dir == 1{ 
-		if eOrders[0][currentFloor] == Network.LocalIp {
+		if eOrders[0][currentFloor] == localIp {
 			return currentFloor
 		}
 	} else if dir == -1 {
-		if eOrders[0][currentFloor] == Network.LocalIp {
+		if eOrders[0][currentFloor] == localIp {
 			return currentFloor
 		}
 	}
 	
 	return tmpNextOrder
+
 }
 
-func queue_manager(intrOrd chan int, extrOrd chan myOrder, dirOrNF chan int, deleteOrdFloor chan int, sendInfo chan myInfo, currentFloor chan int){
+func Queue_manager(intrOrdChan chan int, extrOrdChan chan ElevLib.MyOrder, nextFloorChan chan int, deleteOrdFloorChan chan int, sendInfoChan chan ElevLib.MyInfo, currentFloorAndDirChan chan int, setLightsChan chan []int, localIpChan chan string){
+
+	localIp = <- localIpChan
 
 	dir := 0
 	current_floor := -1
 
 	internalOrders := []int{}
-	externalOrders := [2][N_FLOORS]string{}   // [0][...] er opp bestillinger og [1][...] er ned bestillinger
+	externalOrders := [2][N_FLOORS]string{}
 	
 	for {
 		select{
-		case order := <- intrOrd:
+		case order := <- intrOrdChan:
 			internalOrders = setInternalOrder(internalOrders, order, dir)
-			sendInfo <- MyInfo{
+
+			setLightsChan <- []int{ElevLib.BUTTON_COMMAND, order, 1}
+
+			sendInfoChan <- ElevLib.MyInfo{
 				Ip: Network.LocalIp,
 				Dir: dir,
 				CurrentFloor: current_floor,
 				InternalOrders: internalOrders,
 				}
 			
-		case order := <- extrOrd:
+		case order := <- extrOrdChan:
 			externalOrders = setExternalOrder(externalOrders, order)
+			setLightsChan <- []int{order.ButtonType, order.Floor, 1}
 		
 		
-		case tmpCurrent_floor := <-currentFloor:
+		case tmpCurrent_floor := <-currentFloorAndDirChan:
+
+			nextFloorChan <- nextOrder(internalOrders, externalOrders, tmpCurrent_floor, dir)
 			
-			if tmpDir := <-dirOrNF; tmpDir != dir || tmpCurrent_floor != current_floor {
+			if tmpDir := <-currentFloorAndDirChan; tmpDir != dir || tmpCurrent_floor != current_floor {
 				dir = tmpDir
 				current_floor = tmpCurrent_floor
-				sendInfo <- MyInfo{
+				sendInfoChan <- ElevLib.MyInfo{
 					Ip: Network.LocalIp,
 					Dir: dir,
 					CurrentFloor: current_floor,
 					InternalOrders: internalOrders,
 					}
 			}
-
-			dirOrNF <- nextOrder(internalOrders, externalOrders, current_floor, dir)
 			
-			
-		case deleteOrder := <- deleteOrdFloor:
+		case deleteOrder := <- deleteOrdFloorChan:
 		
 			internalOrders = internalOrders[1:]
 			if tmpDir == 1 {
-				externalOrders[BUTTON_CALL_UP][deleteOrder] = ""
+				externalOrders[ElevLib.BUTTON_CALL_UP][deleteOrder] = ""
+				setLightsChan <- []int{ElevLib.BUTTON_CALL_UP, deleteOrder, 0}
+				
+				
 			} else if tmpDir == -1 {
-				externalOrders[BUTTON_CALL_DOWN][deleteOrder] = ""
+				externalOrders[ElevLib.BUTTON_CALL_DOWN][deleteOrder] = ""
+				setLightsChan <- []int{ElevLib.BUTTON_CALL_DOWN, deleteOrder, 0}
 			}
 			
-			// else ?
+			// else ? ERROR HANDLING
 			
-			sendInfo <- MyInfo{
+			time.Sleep(10*time.Millisecond)
+			setLightsChan <- []int{ElevLib.BUTTON_COMMAND, deleteOrder, 0}
+			
+			
+			
+			sendInfoChan <- ElevLib.MyInfo{
 				Ip: Network.LocalIp,
 				Dir: dir,
 				CurrentFloor: current_floor,

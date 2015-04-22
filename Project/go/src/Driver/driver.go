@@ -2,9 +2,8 @@ package Driver
 
 import (
 	"time"
+	"ElevLib"
 )
-
-// SKAL ELEV_INIT KJØRE TIL NÆRMESTE ETASJE?
 
 func ReadElevPanel(buttonChan chan Queue.MyOrder){
 	for {
@@ -25,7 +24,8 @@ func ReadFloorPanel(buttonChan chan Queue.MyOrder){
 }
 
 func readSensors(sensorChan chan int){
-	tmpSensorChan := make(chan int, 1) // Nødvendig med buffer?
+	tmpSensorChan := make(chan int)
+	// defer close tmpSensorChan ??
 	for {
 		elev_get_floor_sensor_signal(tmpSensorChan)
 		tmpVal := <- tmpSensorChan
@@ -35,22 +35,43 @@ func readSensors(sensorChan chan int){
 	}
 }
 
-func Fsm(dirOrNextFloor chan int, deleteOrderOnFloor chan int, currentFloor chan int) { // skal være i drivermodulen
+func setLights(setLightsChan chan []int) {
 
-	current_floor := -1 // initielt (må settes av ELEV_INIT)
-	direction     := 0  // initielt
-	next_floor    := -1 // initielt ingen bestillinger
+	for{
+		lightCommand := <- setLightsChan
+
+		if lightCommand[0] == ElevLib.BUTTON_COMMAND {
+			elev_set_button_lamp(lightCommand[0], lightCommand[1], lightCommand[2])
+		}else if lightCommand[0] == ElevLib.BUTTON_CALL_UP {
+			elev_set_button_lamp(lightCommand[0], lightCommand[1], lightCommand[2])
+		}else if lightCommand[0] == ElevLib.BUTTON_CALL_DOWN {
+			elev_set_button_lamp(lightCommand[0], lightCommand[1], lightCommand[2])
+		}
+	}
+}
+
+func Fsm(nextFloorChan chan int, deleteOrderOnFloorChan chan int, currentFloorAndDirChan chan int, setLightsChan chan []int) {
+
+	current_floor := -1
+	direction     := 0
+	next_floor    := -1
+	errorVar      := false
 	
 	sensorChan := make(chan int)
 	go readSensors(sensorChan)
+	go setLights(setLightsChan)
+
+	// defer close sensorChan	
+
+	current_floor, errorVar = elev_init(sensorChan)
 	
-	// ELEV_INIT HER? -> må ta inn sensorChan og sette current_floor
-	
-	buttonFloorChan := make(chan Queue.MyOrder) // Skal ikke brukes her
-	buttonElevChan  := make(chan Queue.MyOrder) // Skal ikke brukes her
-	go readElevPanel(buttonElevChan)		  // Skal ikke brukes her
-	go readFloorPanel(buttonFloorChan)		  // Skal ikke brukes her
-	
+	if !errorVar {
+		fmt.Println("ERROR: elev.init() did not succeed ")
+		// ERRORHANDLING - INIT DID NOT SUCCEED
+	}
+
+
+	// VI HAR INGEN SET LIGHTS ON/OFF HÅNDTERING PÅ TVERS AV HEISENE
 	
 	STATE := WAIT
 	
@@ -60,44 +81,43 @@ func Fsm(dirOrNextFloor chan int, deleteOrderOnFloor chan int, currentFloor chan
 		
 			case WAIT:
 				
-				currentFloor <- current_floor
-				next_floor = <-dirOrNextFloor
+				currentFloorAndDirChan <- current_floor
+				next_floor = <-nextFloorChan
 				
 				if next_floor < current_floor {
 				
 					direction = -1
-					dirOrNextFloor <- direction
+					currentFloorAndDirChan <- direction
 					elev_set_motor_direction(direction)
 					STATE = MOVING
 					
 				} else if next_floor > current_floor {
 				
 					direction = 1
-					dirOrNextFloor <- direction
+					currentFloorAndDirChan <- direction
 					elev_set_motor_direction(direction)
 					STATE = MOVING
 					
 				} else if next_floor == current_floor {
 					
-					dirOrNextFloor <- direction
+					currentFloorAndDirChan <- direction
 					STATE = OPEN_DOOR
 					
 				} else if next_floor == -1 {
 					
 					direction = 0
-					dirOrNextFloor <- direction
+					currentFloorAndDirChan <- direction
 					
-					//time.Sleep() for å ikke overbelaste QM med requests
-				
+					time.Sleep(300*time.Millisecond)
 				}
 				
 			case MOVING:
 			
 				current_floor = <- sensorChan
 	
-				currentFloor <- current_floor
-				next_floor <- dirOrnextFloor
-				dirOrNextFloor <- direction
+				currentFloorAndDirChan <- current_floor
+				next_floor <- nextFloorChan
+				currentFloorAndDirChan <- direction
 				
 				if current_floor == next_floor {
 					STATE = DOOR_OPEN
@@ -108,9 +128,9 @@ func Fsm(dirOrNextFloor chan int, deleteOrderOnFloor chan int, currentFloor chan
 				elev_set_door_open_lamp(true)
 				t := time.Now()
 				for(!t.After(3*time.Seconds){
-					currentFloor <- current_floor
-					next_floor <- dirOrnextFloor
-					dirOrNextFloor <- direction
+					currentFloorAndDirChan <- current_floor
+					next_floor <- nextFloorChan
+					currentFloorAndDirChan <- direction
 
 					if current_floor == next_floor{
 						t = time.Now()
@@ -118,19 +138,12 @@ func Fsm(dirOrNextFloor chan int, deleteOrderOnFloor chan int, currentFloor chan
 				}
 				elev_set_door_open_lamp(false)				
 
-				deleteOrderOnFloor <- current_floor
-				ordersDeleted := <-deleteOrderOnFloor
-				
-				// SLETTE LYS
-				if direction == 1{
-					elev_set_button_lamp(BUTTON_CALL_UP, current_floor,0)
-					elev_set_button_lamp(BUTTON_COMMAND, current_floor,0)
-				} else {
-					elev_set_button_lamp(BUTTON_CALL_DOWN, current_floor, 0)
-					elev_set_button_lamp(BUTTON_COMMAND, current_floor,0)
-				}
+				deleteOrderOnFloorChan <- current_floor
+				//ordersDeleted := <-deleteOrderOnFloorChan // Foreløpig sender vi ikke bekreftelse fra queue om at etasjen er slettet
 				
 				STATE = WAIT				
 		}
 	}
+}
+
 }

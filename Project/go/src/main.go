@@ -1,181 +1,68 @@
 package main
 
 import (
-	"fmt"
-	//"time"
+	"Queue"
+	"Driver"
+	"Network"
 )
 
-
-const (
-	BUTTON_DOWN    = 0
-	BUTTON_UP      = 1
-	BUTTON_COMMAND = 2
-	
-	N_FLOORS = 4
-)
-
-type myOrder struct{
-	// fromIP string (f.eks: Master. Da vet alle slavene at master har gitt ordren til toIP slave)
-	// toIP string
-	
-	IP string
-	buttonType int
-	floor int
-}
-
-type myInfo struct {
-	Ip string
-	Dir int
-	InternalOrders []int
-}
-
-
-func queue_manager(intrOrd chan int, extrOrd chan myOrder, dirOrNF chan int, deleteOrdFloor chan int, reqInfo chan myInfo, msg chan string){
-	
-	
-	
-	// lastOrder := -1
-	myIP := "0.0.1"
-	direction := 1
-	internalOrders := []int{}
-	externalOrders := [2][N_FLOORS]string{}
-	
-	for {
-		select{
-		case order := <- intrOrd:
-			internalOrders = setInternalOrder(internalOrders, order, direction)
-			msg <- fmt.Sprintf("QM: Added floor %v to internalOrders\n\n", order)
-			
-		case order := <- extrOrd:
-			externalOrders = setExternalOrder(externalOrders, order)
-			msg <- fmt.Sprintf("QM: Added an order to externalOrders\n\n")
-			
-			
-		//case dir := <- dirOrNF:
-		//	dirOrNF <- nextOrder(internalOrders, externalOrders, dir)
-		//	msg <- fmt.Sprintf("QM: returned nextOrder to FSM\n\n")
-			
-			
-		case deleteOrder := <- deleteOrdFloor:
-			//internalOrders, externalOrders = deleteOrderFloor(internalOrders, externalOrders, deleteOrder)
-			msg <- fmt.Sprintf("QM: deleted order on floor %v\n\n", deleteOrder)
-			
-		case <-reqInfo:
-			reqInfo <- myInfo{
-					Ip: myIP,
-					Dir: direction,
-					InternalOrders: internalOrders,
-					}
-			msg <- fmt.Sprintf("QM: returned requested info to NM")
-		}
-	}
-}
-
-func sendOrders(intrOrd chan int, extrnOrd chan myOrder, reqInfo chan myInfo) {
-	
-	j := []int{1,4,2,3}
-	
-	myOrders := []myOrder{}
-	
-	myOrder1 := myOrder{
-		IP: "0.0.1",
-		buttonType: BUTTON_DOWN,
-		floor: 3,
-	}
-	myOrder2 := myOrder{
-		IP: "0.0.2",
-		buttonType: BUTTON_UP,
-		floor: 2,
-	}
-	
-	myOrders = append(myOrders, myOrder1)
-	myOrders = append(myOrders, myOrder2)
-	
-	
-	info := make(map[int]myInfo)
-	
-	intCount := 0
-	extCount := 0
-	infoCount := 0
-	for i := 0; i < 8; i ++ {
-		if i < 4 {
-			intrOrd <- j[intCount]
-			intCount++
-		} else if i >= 4 && i < 6 {
-			extrnOrd <- myOrders[extCount]
-			extCount++
-		} else if i >= 6 && i < 8 {
-			reqInfo <- myInfo{}
-			info[infoCount] = <- reqInfo
-			infoCount++
-		}
-		
-	}
-	
-	//fmt.Println(info)
-}
-
-func setInternalOrder(iOrders []int, floor, dir int) ([]int) {
-
-	
-	if dir == 1 {
-	
-		// If floor - current position < 0, then append at back
-		// if floor - current position = 0, open door
-		for i := 0; i < len(iOrders); i++ {
-			if floor < iOrders[i]{
-				return insert(iOrders, floor, i)
-			}
-		
-		}
-		
-	} else if dir == -1 {
-	
-		// If current position - floor < 0, then append at back
-		// if current position - floor = 0, then open door
-		for i := 0; i < len(iOrders); i++{
-			if floor > iOrders[i] {
-				return insert(iOrders, floor, i)
-			}
-		}
-		
-	}
-	return append(iOrders, floor)
-}
-
-func insert (orders []int ,floor, i int) ([]int) {
-	// Kanskje vi må passe på størrelsen til orders slik at vi vet at i finnes i orders??
-	tmpSlice := orders[:i]
-	tmpSlice = append(tmpSlice, floor)
-	return append(tmpSlice, orders[i:]...)
-}
-
-func setExternalOrder(eOrders [2][N_FLOORS]string, order myOrder) ([2][N_FLOORS]string) {
-	eOrders[order.buttonType][order.floor] = order.IP
-	return eOrders
-	
-}
 
 
 func main() {
 	
-	intrOrd     := make(chan int)
-	//newExtrnOrd := make(chan myOrder)
-	extrnOrd    := make(chan myOrder)
+
+
+	localIpChan := make(chan string)
+	newExternalOrderChan := make(chan Elevlib.MyOrder)
+	externalOrderChan := make(chan string)
+	internalOrderChan  := make(chan int)
+	nextFloorChan := make(chan int)
+	deleteOrderOnFloorChan := make(chan int)
+	newInfoChan := make(chan Elevlib.MyInfo)
+	currentFloorAndDirChan := make(chan int)
+	setLightsChan := make(chan int)
+
+
+	go Queue.Queue_manager(internalOrderChan, externalOrderChan, nextFloorChan, deleteOrderOnFloorChan, newInfoChan, currentFloorAndDirChan, setLightsChan, localIpChan)
 	
-	//sensor := make(chan int)
 	
-	dirOrNextFloor := make(chan int)
-	reqInfo	   := make(chan myInfo)
-	deleteOrder    := make(chan int)
-	
-	msg := make(chan string)
-	
-	go queue_manager(intrOrd, extrnOrd, dirOrNextFloor, deleteOrder, reqInfo, msg)
-	go sendOrders(intrOrd, extrnOrd, reqInfo)
-	
-	
-	for{
-		fmt.Println(<-msg)		
+	//Network.EventManager_NetworkStuff(newInfoChan, externalOrderChan, newExternalOrderChan)
+	//defer close channels	
+
+	Network.Init(localIpChan)
+	go Network.SendAliveMessageUDP()
+	go Network.ReadAliveMessageUDP()
+
+	go Driver.ReadElevPanel(internalOrderChan)
+	go Driver.ReadFloorPanel(newExternalOrderChan)
+	go Driver.Fsm(nextFloorChan, deleteOrderOnFloorChan, currentFloorAndDirChan, setLightsChan)
+
+
+	master := Network.SolvMaster()
+	if (!master) {
+		boolvar = true		
 	}
+	for {
+		if (master) {
+
+			if (!boolvar) {
+			fmt.Println("Im Master")
+			boolvar = true
+			writeToSocketmap := make(chan int,1)
+			go Network.AcceptTCP(writeToSocketmap)
+			go Network.Master(writeToSocketmap,newInfoChan, externalOrderChan, newExternalOrderChan)
+			}
+
+		master = Network.SolvMaster()
+		}else{
+			if (boolvar) {
+				fmt.Println("Im a Slave biatch")
+				boolvar = false
+				go Network.Slave(newInfoChan, externalOrderChan, newExternalOrderChan)
+			}
+		master = Network.SolvMaster()
+		}
+	}
+
+	// Vi må forsikre oss om at thread Master og Slave avsluttes når man går f.eks. fra Slave til Master
 }

@@ -1,8 +1,19 @@
 package main
 
-import "Driver"
+import (
+
+	"fmt"
+	"time"
+
+)
 
 func main() {
-	Driver.Printsomething()
+	
+	boolVar := false
 
+	if !boolVar {
+		fmt.Println("Sleeping")
+		time.Sleep(100*time.Millisecond)
+		fmt.Println("Test ok!")
+	}
 }
