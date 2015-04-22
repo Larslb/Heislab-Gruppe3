@@ -2,6 +2,7 @@ package Queue
 
 import(
 	"time"
+	"fmt"
 	"ElevLib"
 )
 
@@ -42,20 +43,19 @@ func insert(orders []int ,floor, i int) ([]int) {
 	tmp := make([]int, len(orders[:i]), len(orders)+1)
 	copy(tmp, orders[:i])
 	tmp = append(tmp, floor)
-	tmp = append(tmp, internalOrders[i:]...)
-	return tmpSlice
+	tmp = append(tmp, orders[i:]...)
+	return tmp
 }
 
-func setExternalOrder(eOrders [2][N_FLOORS]string, order ElevLib.MyOrder) ([2][N_FLOORS]string) {
+func setExternalOrder(eOrders [2][ElevLib.N_FLOORS]string, order ElevLib.MyOrder) ([2][ElevLib.N_FLOORS]string) {
 	eOrders[order.ButtonType][order.Floor] = order.Ip
 	return eOrders
 }
 
-func nextOrder(iOrder []int, eOrders [2][N_FLOORS]string, currentFloor int, dir int) int {
-	
-	if iOrder == [] {	
+func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor int, dir int)int{
+	if len(iOrder)==0 {
 		if dir == 1 {
-			for floor := currentFloor; floor < N_FLOORS ; floor++ {
+			for floor := currentFloor; floor < ElevLib.N_FLOORS ; floor++ {
 				if eOrders[0][floor] == localIp { 
 					return floor
 				} else {
@@ -71,7 +71,7 @@ func nextOrder(iOrder []int, eOrders [2][N_FLOORS]string, currentFloor int, dir 
 				}
 			}
 		} else if dir == 0 {
-			for floor := currentFloor; floor < N_FLOORS ; floor++ {
+			for floor := currentFloor; floor < ElevLib.N_FLOORS ; floor++ {
 				if eOrders[0][floor] == localIp { 
 					return floor
 				} else {
@@ -91,8 +91,7 @@ func nextOrder(iOrder []int, eOrders [2][N_FLOORS]string, currentFloor int, dir 
 			}
 	}
 
-
-	tmpNextOrder = iOrder[0]
+	tmpNextOrder := iOrder[0]
 	
 	if dir == 1{ 
 		if eOrders[0][currentFloor] == localIp {
@@ -108,7 +107,7 @@ func nextOrder(iOrder []int, eOrders [2][N_FLOORS]string, currentFloor int, dir 
 
 }
 
-func Queue_manager(intrOrdChan chan int, extrOrdChan chan ElevLib.MyOrder, nextFloorChan chan int, deleteOrdFloorChan chan int, sendInfoChan chan ElevLib.MyInfo, currentFloorAndDirChan chan int, setLightsChan chan []int, localIpChan chan string){
+func Queue_manager(intrOrdChan chan ElevLib.MyOrder, extrOrdChan chan ElevLib.MyOrder, nextFloorChan chan int, deleteOrdFloorChan chan int, sendInfoChan chan ElevLib.MyInfo, currentFloorChan chan int, directionChan chan int, setLightsChan chan []int, localIpChan chan string){
 
 	localIp = <- localIpChan
 
@@ -116,51 +115,64 @@ func Queue_manager(intrOrdChan chan int, extrOrdChan chan ElevLib.MyOrder, nextF
 	current_floor := -1
 
 	internalOrders := []int{}
-	externalOrders := [2][N_FLOORS]string{}
+	externalOrders := [2][ElevLib.N_FLOORS]string{}
 	
 	for {
 		select{
 		case order := <- intrOrdChan:
-			internalOrders = setInternalOrder(internalOrders, order, dir)
+			time.Sleep(30*time.Millisecond)
+			fmt.Sprintf("QUEUE: ","Internal order received on floor: %v", order.Floor)
+			internalOrders = setInternalOrder(internalOrders, order.Floor ,current_floor, dir)
 
-			setLightsChan <- []int{ElevLib.BUTTON_COMMAND, order, 1}
-
+			setLightsChan <- []int{ElevLib.BUTTON_COMMAND, order.Floor, 1}
+			fmt.Print("QUEUE: ", "Sending new info on internal orders to MASTER")
 			sendInfoChan <- ElevLib.MyInfo{
-				Ip: Network.LocalIp,
+				Ip: localIp,
 				Dir: dir,
 				CurrentFloor: current_floor,
 				InternalOrders: internalOrders,
 				}
 			
 		case order := <- extrOrdChan:
+			time.Sleep(30*time.Millisecond)
+			fmt.Sprintf("QUEUE: ","External order received on floor: %v", order.Floor)
 			externalOrders = setExternalOrder(externalOrders, order)
 			setLightsChan <- []int{order.ButtonType, order.Floor, 1}
 		
 		
-		case tmpCurrent_floor := <-currentFloorAndDirChan:
+		case tmpCurrent_floor := <-currentFloorChan:
+			time.Sleep(30*time.Millisecond)
+			fmt.Println("QUEUE: ", "FSM requires next_order")
+			next_floor := nextOrder(internalOrders, externalOrders, tmpCurrent_floor, dir)
 
-			nextFloorChan <- nextOrder(internalOrders, externalOrders, tmpCurrent_floor, dir)
+			fmt.Println("QUEUE: ", "sending next_order to FSM")
+			nextFloorChan <- next_floor
 			
-			if tmpDir := <-currentFloorAndDirChan; tmpDir != dir || tmpCurrent_floor != current_floor {
+			fmt.Println("QUEUE: ", "waiting for new direction")
+			if tmpDir := <-directionChan; tmpDir != dir || tmpCurrent_floor != current_floor {
+				fmt.Println("QUEUE: ", "Sending new info on current_floor and direction to MASTER")
 				dir = tmpDir
 				current_floor = tmpCurrent_floor
-				sendInfoChan <- ElevLib.MyInfo{
-					Ip: Network.LocalIp,
+				/*info := ElevLib.MyInfo{
+					Ip: localIp,
 					Dir: dir,
 					CurrentFloor: current_floor,
 					InternalOrders: internalOrders,
 					}
+				sendInfoChan <- info
+				*/
 			}
+			fmt.Println("QUEUE: ", "dir =", dir, "current_floor = ", current_floor)
 			
 		case deleteOrder := <- deleteOrdFloorChan:
 		
 			internalOrders = internalOrders[1:]
-			if tmpDir == 1 {
+			if dir == 1 {
 				externalOrders[ElevLib.BUTTON_CALL_UP][deleteOrder] = ""
 				setLightsChan <- []int{ElevLib.BUTTON_CALL_UP, deleteOrder, 0}
 				
 				
-			} else if tmpDir == -1 {
+			} else if dir == -1 {
 				externalOrders[ElevLib.BUTTON_CALL_DOWN][deleteOrder] = ""
 				setLightsChan <- []int{ElevLib.BUTTON_CALL_DOWN, deleteOrder, 0}
 			}
@@ -173,7 +185,7 @@ func Queue_manager(intrOrdChan chan int, extrOrdChan chan ElevLib.MyOrder, nextF
 			
 			
 			sendInfoChan <- ElevLib.MyInfo{
-				Ip: Network.LocalIp,
+				Ip: localIp,
 				Dir: dir,
 				CurrentFloor: current_floor,
 				InternalOrders: internalOrders,

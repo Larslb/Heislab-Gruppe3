@@ -1,0 +1,24 @@
+package main
+
+import (
+	"Queue"
+	"Driver"
+	"Network"
+)
+
+
+
+func main() {
+	
+	buttonFloorChan := make(chan Queue.MyOrder)
+	buttonElevChan  := make(chan Queue.MyOrder)
+	go Driver.ReadElevPanel(buttonElevChan)
+	go Driver.ReadFloorPanel(buttonFloorChan)
+	go Driver.Fsm(nextFloorChan chan int, deleteOrderOnFloorChan chan int, currentFloorAndDirChan chan int)
+	go Queue.Queue_manager(intrOrdChan chan int, extrOrdChan chan myOrder, nextFloorChan chan int, deleteOrdFloorChan chan int, sendInfoChan chan myInfo, currentFloorAndDirChan chan int)
+	
+	//defer close channels	
+
+
+	// go Network
+}

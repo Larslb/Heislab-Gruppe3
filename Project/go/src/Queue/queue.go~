@@ -1,75 +1,175 @@
 package Queue
 
-
-
-// 1. Hvordan representere køen? Map?
-// 2. Hva med retningsbit?
-// 3. Hvor bør variabler ligge? Queue, Driver?
-
-
-// Variabler
-
-const (
-	N_BUTTONS int = 3
-	N_FLOORS int = 4
+import(
+	"time"
+	"ElevLib"
 )
 
+func setInternalOrder(iOrders []int, floor, currentFloor, dir int) ([]int) {
+	if dir == 1 {
+		if (floor - currentFloor < 0) {
+			return append(iOrders,floor)
+		} else if (floor - currentFloor == 0) {
+			return insert(iOrders, floor, 0)
+		}
 
-type MyOrder struct{
-	ButtonType int
-	Floor int
-	Value int
-	Direction int
-}
+		for i := 0; i < len(iOrders); i++ {
+			if floor < iOrders[i]{
+				return insert(iOrders, floor, i)
+			}
+		
+		}
+	} else if dir == -1 {
+		if (floor - currentFloor > 0) {
+			return append(iOrders,floor)
+		} else if (floor - currentFloor == 0) {
+			return insert(iOrders, floor, 0)
+		}
 
-type externalOrder struct {
-	buttonType int
-	floor	   int
-}
-
-
-// Hvordan initialisere internalOrders
-internalOrders = make(map[int]bool)
-
-// Hva gjør vi med bestillinger når heisen dør?
-var externalOrders = [N_FLOORS]externalOrder
-
-
-
-
-
-
-
-// Ikke ferdige funksjoner
-
-func initInternalOrders() {}
-
-
-
-// Ferdige funksjoner
-func DeleteInternalOrder(floor int) {
-	internalOrder[floor] = false
-}
-
-func SetInternalOrders(floor int){
-	internalOrders[floor] = true
-}
-
-
-func SetExternalOrders(button, fl int) {
-	extOrd := externalOrder{
-		buttonType:	button
-		floor:		fl
+		for i := 0; i < len(iOrders); i++{
+			if floor > iOrders[i] {
+				return insert(iOrders, floor, i)
+			}
+		}
 	}
-	externalOrders = append(externalOrders, extOrd)
+	return append(iOrders, floor)
 }
 
-func CheckFloor(floor int) (bool){
-	return internalOrders[floor]
+func insert (orders []int ,floor, i int) ([]int) {
+	tmp := make([]int, len(orders[:i]), len(orders)+1)
+	copy(tmp, orders[:i])
+	tmp = append(tmp, floor)
+	tmp = append(tmp, internalOrders[i:]...)
+	return tmpSlice
 }
 
-func Delete_all_internalOrders(){
-	for i,_:= range internalOrders{
-		DeleteInternalOrder(i)
+func setExternalOrder(eOrders [2][N_FLOORS]string, order ElevLib.MyOrder) ([2][N_FLOORS]string) {
+	eOrders[order.ButtonType][order.Floor] = order.Ip
+	return eOrders
+}
+
+func nextOrder(iOrder []int, eOrders [2][N_FLOORS]string, currentFloor int, dir int) int {
+	
+	if iOrder == [] {	
+		if dir == 1 {
+			for floor := currentFloor; floor < N_FLOORS ; floor++ {
+				if eOrders[0][floor] == Network.LocalIp { // HVORDAN GJØR VI DET HER?? HAR VI LAGRET MyIp?
+					return floor
+				} else {
+					return -1
+				}
+			}
+		} else if dir == -1 {
+			for floor := currentFloor; floor > -1 ; floor-- {
+				if eOrders[1][floor] == Network.LocalIp { // HVORDAN GJØR VI DET HER?? HAR VI LAGRET MyIp?
+					return floor
+				} else {
+					return -1
+				}
+			}
+		} else if dir == 0 {
+			for floor := currentFloor; floor < N_FLOORS ; floor++ {
+				if eOrders[0][floor] == Network.LocalIp { // HVORDAN GJØR VI DET HER?? HAR VI LAGRET MyIp?
+					return floor
+				} else {
+					return -1
+				}
+			for floor := currentFloor; floor > -1 ; floor-- {
+				if eOrders[1][floor] == Network.LocalIp { // HVORDAN GJØR VI DET HER?? HAR VI LAGRET MyIp?
+					return floor
+				} else {
+					return -1
+				}
+			}
+			
+		} // else -> ERROR HANDLING
+	}
+
+
+	tmpNextOrder = iOrder[0]
+	
+	if dir == 1{ 
+		if eOrders[0][currentFloor] == Network.LocalIp {
+			return currentFloor
+		}
+	} else if dir == -1 {
+		if eOrders[0][currentFloor] == Network.LocalIp {
+			return currentFloor
+		}
+	}
+	
+	return tmpNextOrder
+}
+
+func Queue_manager(intrOrdChan chan int, extrOrdChan chan ElevLib.MyOrder, nextFloorChan chan int, deleteOrdFloorChan chan int, sendInfoChan chan ElevLib.MyInfo, currentFloorAndDirChan chan int, setLightsChan chan int){
+
+	dir := 0
+	current_floor := -1
+
+	internalOrders := []int{}
+	externalOrders := [2][N_FLOORS]string{}
+	
+	for {
+		select{
+		case order := <- intrOrdChan:
+			internalOrders = setInternalOrder(internalOrders, order, dir)
+
+			setLightsChan <- []int{ElevLib.BUTTON_COMMAND, order, 1}
+
+			sendInfoChan <- ElevLib.MyInfo{
+				Ip: Network.LocalIp,
+				Dir: dir,
+				CurrentFloor: current_floor,
+				InternalOrders: internalOrders,
+				}
+			
+		case order := <- extrOrdChan:
+			externalOrders = setExternalOrder(externalOrders, order)
+			
+			setLightsChan <- []int{order.ButtonType, order.Floor, 1}
+		
+		
+		case tmpCurrent_floor := <-currentFloorAndDirChan:
+
+			nextFloorChan <- nextOrder(internalOrders, externalOrders, tmpCurrent_floor, dir)
+			
+			if tmpDir := <-currentFloorAndDirChan; tmpDir != dir || tmpCurrent_floor != current_floor {
+				dir = tmpDir
+				current_floor = tmpCurrent_floor
+				sendInfoChan <- ElevLib.MyInfo{
+					Ip: Network.LocalIp,
+					Dir: dir,
+					CurrentFloor: current_floor,
+					InternalOrders: internalOrders,
+					}
+			}
+			
+		case deleteOrder := <- deleteOrdFloorChan:
+		
+			internalOrders = internalOrders[1:]
+			if tmpDir == 1 {
+				externalOrders[ElevLib.BUTTON_CALL_UP][deleteOrder] = ""
+				setLightsChan <- []int{ElevLib.BUTTON_CALL_UP, deleteOrder, 0}
+				
+				
+			} else if tmpDir == -1 {
+				externalOrders[ElevLib.BUTTON_CALL_DOWN][deleteOrder] = ""
+				setLightsChan <- []int{ElevLib.BUTTON_CALL_DOWN, deleteOrder, 0}
+			}
+			
+			// else ? ERROR HANDLING
+			
+			time.Sleep(10*time.Millisecond)
+			setLightsChan <- []int{ElevLib.BUTTON_COMMAND, deleteOrder, 0}
+			
+			
+			
+			sendInfoChan <- ElevLib.MyInfo{
+				Ip: Network.LocalIp,
+				Dir: dir,
+				CurrentFloor: current_floor,
+				InternalOrders: internalOrders,
+				}
+		}
 	}
 }

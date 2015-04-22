@@ -2,6 +2,7 @@ package ElevLib
 
 const (
 	N_FLOORS int = 4
+	N_BUTTONS int = 3
 	BUTTON_CALL_UP int = 0
 	BUTTON_CALL_DOWN int = 1
 	BUTTON_COMMAND int = 2
@@ -19,8 +20,7 @@ type MyInfo struct {
 }
 
 type MyOrder struct {
-	FromIp string
-	// ToIp string
+	Ip string
 	ButtonType int
 	Floor int
 }

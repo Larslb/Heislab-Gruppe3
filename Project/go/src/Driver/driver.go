@@ -1,22 +1,23 @@
 package Driver
 
 import (
+	"fmt"
 	"time"
 	"ElevLib"
 )
 
-func ReadElevPanel(buttonChan chan Queue.MyOrder){
+func ReadElevPanel(buttonChan chan ElevLib.MyOrder){
 	for {
-		for i:=0;i<N_FLOORS;i++{
-			elev_get_button_signal(BUTTON_COMMAND,i, buttonChan)
+		for i:=0;i<ElevLib.N_FLOORS;i++{
+			elev_get_button_signal(ElevLib.BUTTON_COMMAND,i, buttonChan)
 		}
 	}
 }
 
-func ReadFloorPanel(buttonChan chan Queue.MyOrder){
+func ReadFloorPanel(buttonChan chan ElevLib.MyOrder){
 	for{
-		for i:=0;i<N_BUTTONS-1;i++{
-			for j:=0;j<N_FLOORS;j++{
+		for i:=0;i<ElevLib.N_BUTTONS-1;i++{
+			for j:=0;j<ElevLib.N_FLOORS;j++{
 				elev_get_button_signal(i, j, buttonChan)
 			}
 		}
@@ -24,11 +25,9 @@ func ReadFloorPanel(buttonChan chan Queue.MyOrder){
 }
 
 func readSensors(sensorChan chan int){
-	tmpSensorChan := make(chan int)
-	// defer close tmpSensorChan ??
+	
 	for {
-		elev_get_floor_sensor_signal(tmpSensorChan)
-		tmpVal := <- tmpSensorChan
+		tmpVal := elev_get_floor_sensor_signal()
 		if tmpVal != -1 {
 			sensorChan <- tmpVal		
 		}
@@ -50,7 +49,7 @@ func setLights(setLightsChan chan []int) {
 	}
 }
 
-func Fsm(nextFloorChan chan int, deleteOrderOnFloorChan chan int, currentFloorAndDirChan chan int, setLightsChan chan []int) {
+func Fsm(nextFloorChan chan int, deleteOrderOnFloorChan chan int, currentFloorChan chan int, directionChan chan int, setLightsChan chan []int) {
 
 	current_floor := -1
 	direction     := 0
@@ -62,8 +61,8 @@ func Fsm(nextFloorChan chan int, deleteOrderOnFloorChan chan int, currentFloorAn
 	go setLights(setLightsChan)
 
 	// defer close sensorChan	
-
 	current_floor, errorVar = elev_init(sensorChan)
+	
 	
 	if !errorVar {
 		fmt.Println("ERROR: elev.init() did not succeed ")
@@ -73,77 +72,83 @@ func Fsm(nextFloorChan chan int, deleteOrderOnFloorChan chan int, currentFloorAn
 
 	// VI HAR INGEN SET LIGHTS ON/OFF HÅNDTERING PÅ TVERS AV HEISENE
 	
-	STATE := WAIT
+	STATE := ElevLib.WAIT
 	
 	for {
 		switch STATE {
 		
 		
-			case WAIT:
-				
-				currentFloorAndDirChan <- current_floor
+			case ElevLib.WAIT:
+				fmt.Println("FSM: ", "STATE = WAIT")
+				currentFloorChan <- current_floor
 				next_floor = <-nextFloorChan
 				
-				if next_floor < current_floor {
-				
+				if next_floor == -1 {
+					fmt.Println("FSM: ","current_floor = ", current_floor, "next_floor = ", next_floor)
+					direction = 0
+					directionChan <- direction
+					
+					time.Sleep(30*time.Millisecond)
+				} else if next_floor < current_floor {
+					fmt.Println("FSM: ","current_floor = ", current_floor, "next_floor = ", next_floor)
 					direction = -1
-					currentFloorAndDirChan <- direction
+					fmt.Println(direction)
+					directionChan <- direction
 					elev_set_motor_direction(direction)
-					STATE = MOVING
+					STATE = ElevLib.MOVING
+					fmt.Println("FSM: ","MOVING DOWN")
+					time.Sleep(30*time.Millisecond)
 					
 				} else if next_floor > current_floor {
-				
+					fmt.Println("FSM: ","current_floor = ", current_floor, "next_floor = ", next_floor)
 					direction = 1
-					currentFloorAndDirChan <- direction
+					directionChan <- direction
 					elev_set_motor_direction(direction)
-					STATE = MOVING
+					STATE = ElevLib.MOVING
+					fmt.Println("FSM: ","MOVING UP")
+					time.Sleep(30*time.Millisecond)
 					
 				} else if next_floor == current_floor {
+					fmt.Println("FSM: ","current_floor = ", current_floor, "next_floor = ", next_floor)
+					directionChan <- direction
+					STATE = ElevLib.OPEN_DOOR
+					time.Sleep(30*time.Millisecond)
 					
-					currentFloorAndDirChan <- direction
-					STATE = OPEN_DOOR
-					
-				} else if next_floor == -1 {
-					
-					direction = 0
-					currentFloorAndDirChan <- direction
-					
-					time.Sleep(300*time.Millisecond)
 				}
 				
-			case MOVING:
-			
+			case ElevLib.MOVING:
+				fmt.Println("FSM: ","STATE = MOVING")
 				current_floor = <- sensorChan
 	
-				currentFloorAndDirChan <- current_floor
-				next_floor <- nextFloorChan
-				currentFloorAndDirChan <- direction
+				currentFloorChan <- current_floor
+				next_floor = <- nextFloorChan
+				directionChan <- direction
 				
 				if current_floor == next_floor {
-					STATE = DOOR_OPEN
+					STATE = ElevLib.OPEN_DOOR
 				}
 				
-			case OPEN_DOOR:
+			case ElevLib.OPEN_DOOR:
+				fmt.Println("FSM: ","STATE = OPEN_DOOR")
 				elev_set_motor_direction(0)
 				elev_set_door_open_lamp(true)
 				t := time.Now()
-				for(!t.After(3*time.Seconds){
-					currentFloorAndDirChan <- current_floor
-					next_floor <- nextFloorChan
-					currentFloorAndDirChan <- direction
+				t2 := t.Add(3*time.Second)
+				for !t.After(t2) {
+					currentFloorChan <- current_floor
+					next_floor = <- nextFloorChan
+					directionChan <- direction
 
 					if current_floor == next_floor{
 						t = time.Now()
+						t2 =t.Add(3*time.Second)
 					}
 				}
 				elev_set_door_open_lamp(false)				
 
 				deleteOrderOnFloorChan <- current_floor
-				//ordersDeleted := <-deleteOrderOnFloorChan // Foreløpig sender vi ikke bekreftelse fra queue om at etasjen er slettet
-				
-				STATE = WAIT				
+				STATE = ElevLib.WAIT				
 		}
 	}
 }
 
-}
