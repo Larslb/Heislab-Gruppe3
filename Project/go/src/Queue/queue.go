@@ -52,58 +52,61 @@ func setExternalOrder(eOrders [2][ElevLib.N_FLOORS]string, order ElevLib.MyOrder
 	return eOrders
 }
 
-func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor int, dir int)int{
+func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor int, dir int)(int,int){
 	if len(iOrder)==0 {
 		if dir == 1 {
 			for floor := currentFloor; floor < ElevLib.N_FLOORS ; floor++ {
 				if eOrders[0][floor] == localIp { 
-					return floor
+					return dir, floor
 				} else {
-					return -1
+					return dir, -1
 				}
 			}
 		} else if dir == -1 {
 			for floor := currentFloor; floor > -1 ; floor-- {
 				if eOrders[1][floor] == localIp { 
-					return floor
+					return dir, floor
 				} else {
-					return -1
+					return dir,-1
 				}
 			}
 		} else if dir == 0 {
 			for floor := currentFloor; floor < ElevLib.N_FLOORS ; floor++ {
 				if eOrders[0][floor] == localIp { 
-					return floor
+					return 1, floor
 				} else {
-					return -1
+					return dir, -1
 				}
 			}
 			for floor := currentFloor; floor > -1 ; floor-- {
 				if eOrders[1][floor] == localIp { 
-					return floor
+					return -1, floor
 				} else {
-					return -1
+					return dir, -1
 				}
 			}
 			
 		} else {fmt.Println("ERROR: nextOrder bæsj ")
-			return -1
+			return -1,-1
 			}
 	}
 
 	tmpNextOrder := iOrder[0]
 	
 	if dir == 1{ 
-		if eOrders[0][currentFloor] == localIp {
-			return currentFloor
+		for floor := currentFloor; floor < ElevLib.N_FLOORS ; floor++ {	
+			if eOrders[0][floor] == localIp {
+				return dir, floor
+			}
 		}
 	} else if dir == -1 {
-		if eOrders[0][currentFloor] == localIp {
-			return currentFloor
-		}
+		for floor := currentFloor; floor > -1 ; floor-- {
+			if eOrders[0][floor] == localIp {
+				return dir, floor
+			}
 	}
 	
-	return tmpNextOrder
+	return 0,tmpNextOrder
 
 }
 
