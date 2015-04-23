@@ -24,7 +24,7 @@ func ReadFloorPanel(buttonChan chan ElevLib.MyOrder){
 	}
 }
 
-func readSensors(sensorChan chan int){
+func ReadSensors(sensorChan chan int){  // ENDRET TIL EXPORT FUNC
 	
 	for {
 		tmpVal := elev_get_floor_sensor_signal()
@@ -49,6 +49,7 @@ func setLights(setLightsChan chan []int) {
 	}
 }
 
+/*
 func Fsm(nextFloorChan chan int, deleteOrderOnFloorChan chan int, currentFloorChan chan int, directionChan chan int, setLightsChan chan []int) {
 
 	current_floor := -1
@@ -148,6 +149,78 @@ func Fsm(nextFloorChan chan int, deleteOrderOnFloorChan chan int, currentFloorCh
 
 				deleteOrderOnFloorChan <- current_floor
 				STATE = ElevLib.WAIT				
+		}
+	}
+}*/
+
+
+func ready2receive(rdy2rcv chan bool, reqNewOrder chan int) {
+	for {
+		if <-rdy2rcv{
+			reqNewOrder <- 1
+		}
+	}
+}
+
+func floor_reached(floorReached chan bool, floors newFloor chan int, floor){
+	go2Floor := floor
+	
+	for {
+		case go2Floor = <- newFloor: // funker dette?
+		default:
+			if 
+	}
+}
+
+func FSM(sendReq2EM chan ElevLib.NewReqFSM, status chan int) {
+	
+	rcvFromQueue := make(chan ElevLib.NewReqFSM)
+	updFromQueue := make(chan int)
+	
+	// Used in func ready2receive
+	rdy2rcv	 := make(chan bool)
+	reqNewOrder  := make(chan int)
+	
+	go ready2receive(rdy2rcv, reqNewOrder)
+	
+	// Used in goroutine func floorReached()
+	newFloor     := make(chan int)
+	floorReached := make(chan bool)
+	
+	
+	for {
+		select {
+			case order := <-rcvFromQueue:
+				elev_set_motor_direction(order.Dir)
+				
+				go floor_reached()
+				
+				for {
+					select{
+						case <-floorReached:
+							break;
+						case newOrder := <- updFromQueue:
+							newFloor<- newOrder.Floor
+					}
+				}
+				
+			
+			case <-reqNewOrder:
+				sendReq2EM <- ElevLib.NewReqFSM{
+					OrderChan: rcvFromQueue
+					UpdateOrderChan: updFromQueue
+					Current_floor: 0  //no-care?
+					Direction: 0      //no-care?
+				}
+				
+			case <-status: // Brukes når heisen har stått stille en stund
+				sendReq2EM <- ElevLib.NewReqFSM{
+					OrderChan: rcvFromQueue
+					UpdateOrderChan: updFromQueue
+					Current_floor: 0  //no-care?
+					Direction: 0      //no-care?
+				}
+				
 		}
 	}
 }

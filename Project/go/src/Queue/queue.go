@@ -107,6 +107,8 @@ func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor i
 
 }
 
+
+/*
 func Queue_manager(intrOrdChan chan ElevLib.MyOrder, extrOrdChan chan ElevLib.MyOrder, nextFloorChan chan int, deleteOrdFloorChan chan int, sendInfoChan chan ElevLib.MyInfo, currentFloorChan chan int, directionChan chan int, setLightsChan chan []int, localIpChan chan string){
 
 	localIp = <- localIpChan
@@ -153,14 +155,14 @@ func Queue_manager(intrOrdChan chan ElevLib.MyOrder, extrOrdChan chan ElevLib.My
 				fmt.Println("QUEUE: ", "Sending new info on current_floor and direction to MASTER")
 				dir = tmpDir
 				current_floor = tmpCurrent_floor
-				/*info := ElevLib.MyInfo{
+				info := ElevLib.MyInfo{
 					Ip: localIp,
 					Dir: dir,
 					CurrentFloor: current_floor,
 					InternalOrders: internalOrders,
 					}
 				sendInfoChan <- info
-				*/
+				
 			}
 			fmt.Println("QUEUE: ", "dir =", dir, "current_floor = ", current_floor)
 			
@@ -192,4 +194,43 @@ func Queue_manager(intrOrdChan chan ElevLib.MyOrder, extrOrdChan chan ElevLib.My
 				}
 		}
 	}
+}*/
+
+// NEW SHIT
+
+func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan ElevLib.MyOrder, startUpQueue chan ElevLib.StartQueue) {
+
+	// case startUpQueue (kan unngå å ta inn internalOrderChan,externalOrderChan... og heller initalisere dem her
+	//    og sende dem ut til EM når EM spør om startUpQueue i initialiseringsfasen
+	
+	internalOrders := []int{}
+	externalOrders := [2][ElevLib.N_FLOORS]string{}
+	
+	
+	
+	internalOrderChan := make(chan ElevLib.MyOrder)
+	externalOrderChan := make(chan ElevLib.MyOrder)
+	setLightsChan     := make(chan []int)
+	
+	for{
+		select{
+			case order := <- intrOrdChan:
+			time.Sleep(30*time.Millisecond)
+			fmt.Sprintf("QUEUE: ","Internal order received on floor: %v", order.Floor)
+			internalOrders = setInternalOrder(internalOrders, order.Floor ,current_floor, dir)
+
+			setLightsChan <- []int{ElevLib.BUTTON_COMMAND, order.Floor, 1}
+			fmt.Print("QUEUE: ", "Sending new info on internal orders to MASTER")
+			sendInfoChan <- ElevLib.MyInfo{
+				Ip: localIp,
+				Dir: dir,
+				CurrentFloor: current_floor,
+				InternalOrders: internalOrders,
+				}
+			
+			case <-startUpQueue:
+				
+		}
+	}	
+	
 }

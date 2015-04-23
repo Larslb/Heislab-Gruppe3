@@ -21,10 +21,11 @@ var button_channel_matrix = [ElevLib.N_FLOORS][ElevLib.N_BUTTONS]int {
 
 
 
-func elev_init(sensorChan chan int) (int, bool) {
+func Elev_init(sensorChan chan int) (int, bool) {
 	elev_set_motor_direction(0)
+	
 	if(io_init() != 1){
-		return -1, false;
+		return -1, true;
 	}
 
 	elev_set_door_open_lamp(false)
@@ -47,7 +48,7 @@ func elev_init(sensorChan chan int) (int, bool) {
 	elev_set_motor_direction(0)
 	elev_set_floor_indicator(current_floor)
 
-	return current_floor, true
+	return current_floor, false
 }
 
 func elev_set_motor_direction(dir int){
