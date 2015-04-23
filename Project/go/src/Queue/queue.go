@@ -75,7 +75,11 @@ func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor i
 				if eOrders[1][floor] == localIp { 
 					return dir, floor
 				} else {
+<<<<<<< HEAD
 					return dir, -1
+=======
+					return dir,-1
+>>>>>>> 720ff592ab45816c3b540d3b6951141a4a67abcf
 				}
 			}
 		} else if dir == 0 {
@@ -90,19 +94,31 @@ func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor i
 				if eOrders[1][floor] == localIp { 
 					return -1, floor
 				} else {
+<<<<<<< HEAD
 					return dir , -1
+=======
+					return dir, -1
+>>>>>>> 720ff592ab45816c3b540d3b6951141a4a67abcf
 				}
 			}
 			
 		} else {fmt.Println("ERROR: nextOrder bæsj ")
+<<<<<<< HEAD
 			return 0,-1
+=======
+			return -1,-1
+>>>>>>> 720ff592ab45816c3b540d3b6951141a4a67abcf
 			}
 	}
 
 	tmpNextOrder := iOrder[0]
 	
 	if dir == 1{ 
+<<<<<<< HEAD
 		for floor := currentFloor; floor < ElevLib.N_FLOORS ; floor++ {
+=======
+		for floor := currentFloor; floor < ElevLib.N_FLOORS ; floor++ {	
+>>>>>>> 720ff592ab45816c3b540d3b6951141a4a67abcf
 			if eOrders[0][floor] == localIp {
 				return dir, floor
 			}
@@ -112,10 +128,16 @@ func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor i
 			if eOrders[0][floor] == localIp {
 				return dir, floor
 			}
+<<<<<<< HEAD
 		}
 	}
 	
 	return dir, tmpNextOrder
+=======
+	}
+	
+	return 0,tmpNextOrder
+>>>>>>> 720ff592ab45816c3b540d3b6951141a4a67abcf
 
 }
 
