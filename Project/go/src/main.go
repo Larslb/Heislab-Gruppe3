@@ -9,7 +9,8 @@ import (
 )
 
 
-
+// HVA SOM MÅ GJØRES I MORGEN
+// 1. sørge for at queue får tilgang til current_floor
 
 
 
@@ -50,23 +51,11 @@ func main() {
 	// INIT
 	current_floor := -1
 	direction := 0
-	var err bool
-	//var localIp string
 	
-	floorSensor   := make(chan int)
-	go Driver.ReadSensor(floorSensor)  // HVORDAN BRUKES DENNE I INIT??
-	
-	current_floor, err = Driver.Elev_init(floorSensor)
-	if err {
-		fmt.Println("Unable to initialize elevator!")
-		//do something: return
-	}
-	
-	localIp = ""  // Network.Init(localIpChan) 
+	localIp,_ := Network.GetLocalIP() 
 	
 	
-	
-	newExternalOrderChan := make(chan ElevLib.MyOrder)
+	//newExternalOrderChan := make(chan ElevLib.MyOrder)
 	
 	
 	
@@ -74,49 +63,62 @@ func main() {
 	
 	// COMMUNICATION BETWEEN EM AND FSM
 	rcvNewReqFromFSMChan := make(chan ElevLib.NewReqFSM)
-	sendReqStatusFSM     := make(chan int) // Only used when there have been no orders for a while
-	orderHandled	   := make(chan ElevLib.MyOrder)
+	checkDriverStatus    := make(chan int) // Only used when there have been no orders for a while
+	orderHandledChan	 := make(chan int)
+	setlights 			 := make(chan bool)
 	
 	
 	// COMMUNICATION BETWEEN EM AND QUEUE
-	sendReq2Queue 	   := make(chan ElevLib.NewReqFSM)
-	receiptFromQueue     := make(chan ElevLib.MyOrder)
-	startUpQueue 	   := make(chan ElevLib.StartQueue)
+	sendReq2Queue 	     := make(chan ElevLib.NewReqFSM)
+	receiptFromQueue     := make(chan int)
+	// rcvCurrentFloorQueue := make(chan chan int)
 	
 	
 	// STARTUP PHASE, GO-ROUTINES
-	
-	go Queue.Queue_manager(sendReq2Queue, receiptFromQueue, startUpQueue)
-	
-	startUpQueue <- ElevLib.StartQueue{}
-	time.Sleep(300*time.Millisecond)
-	queueChannels <-startUpQueue
+	setLightsOn := make(chan []int)
+	go Queue.Queue_manager(rcvCurrentFloorQueue, sendReq2Queue, receiptFromQueue, localIp, setLightsOn)
 	
 	
-	go Driver.ReadElevPanel(newExternalOrderChan)
-	go Driver.ReadFloorPanel(queueChannels.InternalOrderChan)
+	go Driver.ReadElevPanel(Queue.ExternalOrderChan)
+	go Driver.ReadFloorPanel(Queue.InternalOrderChan)
 	
-	checkDriverStatus := make(chan int)
-	
-	go Driver.FSM(rcvNewReqFromFSMChan, checkDriverStatus)
-	
+
+	initDriver := make(chan chan int)
+	getCurrent_floorChan := make(chan int)
+	go Driver.FSM(rcvNewReqFromFSMChan, checkDriverStatus, orderHandledChan, setLightsOn, initDriver, setlights)
+
+	time.Sleep(10*time.Millisecond)
+	initDriver <- getCurrent_floorChan
+	current_floor <- getCurrent_floorChan
+	time.Sleep(10*time.Millisecond)
+	checkDriverStatus <-1
+
 	// EVENT MANAGER
 	for{
 		select{
 			case requestNewOrder := <-rcvNewReqFromFSMChan:
+				requestNewOrder.Current_floor = current_floor
+				requestNewOrder.Direction = direction
+
 				sendReq2Queue <- requestNewOrder
 				
 				receipt := <- receiptFromQueue  // We wait for Queue to tell us where the elevetor is going
-				direction = receipt.Dir
+				direction = receipt
 				
 				
 				
-			case delOrder := <-orderHandledChan:
-			case newExtOrd := <-newExternalOrderChan: // FORELØPIG BARE FOR Å TESTE 1 HEIS
-				
-				
+			case floor := <-orderHandledChan:
+				Queue.deleteOrderOnFloorChan <- []int{floor, direction}
+
+				receipt := <- receiptFromQueue  // Trenger egentlig ikke å ta imot
+				fmt.Println("Order on floor ", receipt, " in direction ", direction, " was deleted")
+
+				setLights <- false
+
+
+			/*case newExtOrd := <-newExternalOrderChan: // FORELØPIG BARE FOR Å TESTE 1 HEIS
+				newExtOrd.Ip = localIp
+				Queue.externalOrderChan <- newExtOrd*/
 		}
 	}
-	
-	
 }

@@ -23,7 +23,7 @@ type MyOrder struct {
 	Ip string
 	ButtonType int
 	Floor int
-	Dir int   // ENDRET
+// ENDRET
 }
 
 type MyElev struct {
@@ -35,15 +35,10 @@ type MyElev struct {
 
 // NYTT
 
-type StartQueue struct {
-	InternalOrderChan chan MyOrder
-	ExternalOrderChan chan MyOrder
-	SetLightsChan chan []int
-	DeleteOrderChan chan int
-}
+
 
 type NewReqFSM struct {
-	OrderChan chan ElevLib.MyOrder
+	OrderChan chan [2]int
 	UpdateOrderChan chan int
 	Current_floor int
 	Direction int

@@ -6,9 +6,9 @@ import (
 	"ElevLib"
 )
 
-func ReadElevPanel(buttonChan chan ElevLib.MyOrder){
+func ReadElevPanel(buttonChan chan ElevLib.MyOrder, read chan bool){
 	for {
-		for i:=0;i<ElevLib.N_FLOORS;i++{
+			for i:=0;i<ElevLib.N_FLOORS;i++{
 			elev_get_button_signal(ElevLib.BUTTON_COMMAND,i, buttonChan)
 		}
 	}
@@ -26,7 +26,7 @@ func ReadFloorPanel(buttonChan chan ElevLib.MyOrder){
 
 func ReadSensors(sensorChan chan int){  // ENDRET TIL EXPORT FUNC
 	
-	for {
+	for { 
 		tmpVal := elev_get_floor_sensor_signal()
 		if tmpVal != -1 {
 			sensorChan <- tmpVal		
@@ -34,17 +34,17 @@ func ReadSensors(sensorChan chan int){  // ENDRET TIL EXPORT FUNC
 	}
 }
 
-func setLights(setLightsChan chan []int) {
+func setLights(setLightsOn chan []int, setLightsOff chan []int) {
 
 	for{
-		lightCommand := <- setLightsChan
+		select {
+			case lightCommand := <- setLightsOn:
+				
 
-		if lightCommand[0] == ElevLib.BUTTON_COMMAND {
-			elev_set_button_lamp(lightCommand[0], lightCommand[1], lightCommand[2])
-		}else if lightCommand[0] == ElevLib.BUTTON_CALL_UP {
-			elev_set_button_lamp(lightCommand[0], lightCommand[1], lightCommand[2])
-		}else if lightCommand[0] == ElevLib.BUTTON_CALL_DOWN {
-			elev_set_button_lamp(lightCommand[0], lightCommand[1], lightCommand[2])
+			case lightCommand := <- setLightsOff:
+
+
+				
 		}
 	}
 }
@@ -162,19 +162,23 @@ func ready2receive(rdy2rcv chan bool, reqNewOrder chan int) {
 	}
 }
 
-func floor_reached(floorReached chan bool, floors newFloor chan int, floor){
+func floor_reached(floorReached chan bool, floorSensor chan int, newFloor chan int, floor){
 	go2Floor := floor
 	
 	for {
 		case go2Floor = <- newFloor: // funker dette?
-		default:
-			if 
+		case current_floor := <- floorSensor:
+			elev_set_floor_indicator(current_floor)
+			if current_floor == go2Floor {
+				floorReached <- current_floor
+				return
+			}
 	}
 }
 
-func FSM(sendReq2EM chan ElevLib.NewReqFSM, status chan int) {
+func FSM(sendReq2EM chan ElevLib.NewReqFSM, status chan int, orderHandledChan chan int, setLightsOn chan []int, init chan chan int, setlights chan bool) {
 	
-	rcvFromQueue := make(chan ElevLib.NewReqFSM)
+	rcvFromQueue := make(chan [2]int)
 	updFromQueue := make(chan int)
 	
 	// Used in func ready2receive
@@ -185,26 +189,58 @@ func FSM(sendReq2EM chan ElevLib.NewReqFSM, status chan int) {
 	
 	// Used in goroutine func floorReached()
 	newFloor     := make(chan int)
-	floorReached := make(chan bool)
+	floorReached := make(chan int)
 	
+	floorSensor   := make(chan int)
+	go Driver.ReadSensor(floorSensor)
+	go setLights(setLightsOn, setLightsOff)
 	
 	for {
 		select {
 			case order := <-rcvFromQueue:
-				elev_set_motor_direction(order.Dir)
+
+				if order[1] != -1 {
+					
+					elev_set_motor_direction(order[0])
+
+					go floor_reached(floorReached, floorSensor, newFloor, order[1])
 				
-				go floor_reached()
-				
-				for {
-					select{
-						case <-floorReached:
-							break;
-						case newOrder := <- updFromQueue:
-							newFloor<- newOrder.Floor
+					for {
+						select{
+							case floor := <-floorReached:
+								updFromQueue <- 1 // terminate Update routine in queue
+								break;
+
+							case newOrder := <- updFromQueue:
+								newFloor<- newOrder.Floor
+						}
 					}
-				}
 				
-			
+					elev_set_motor_direction(0)
+
+					elev_set_door_open_lamp(value bool)  // MÅ FIKSES PÅ! HOLDES ÅPEN I 3 SEK
+
+
+
+					orderHandledChan <- floor
+
+					// send false til setLights go-routine
+
+					<-setlights
+					if dir == 1 {
+						setLightsOff <- []int{ElevLib.BUTTON_CALL_UP, floor, false}  // MÅ ENDRE PÅ ELEV_SET_LIGHTS fra int til bool
+						setLightsOff <- []int{ElevLib.BUTTON_COMMAND, floor, false}
+					} else if dir == -1 {
+						setLightsOff <- []int{ElevLib.BUTTON_CALL_DOWN, floor, false}
+						setLightsOff <- []int{ElevLib.BUTTON_COMMAND, floor, false}
+					} else {
+						setLightsOff <- []int{ElevLib.BUTTON_COMMAND, floor, false}
+					}
+
+					rdy2rcv <- true
+				}else{
+					time.Sleep(1*time.Second)
+				}
 			case <-reqNewOrder:
 				sendReq2EM <- ElevLib.NewReqFSM{
 					OrderChan: rcvFromQueue
@@ -220,6 +256,14 @@ func FSM(sendReq2EM chan ElevLib.NewReqFSM, status chan int) {
 					Current_floor: 0  //no-care?
 					Direction: 0      //no-care?
 				}
+
+			case c := <-init:
+				current_floor, err := Driver.Elev_init(floorSensor)
+				if err {
+					fmt.Println("Unable to initialize elevator!")
+					//do something: return
+				c <- current_floor
+	}
 				
 		}
 	}

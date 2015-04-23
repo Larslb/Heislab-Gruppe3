@@ -3,17 +3,32 @@ package main
 import (
 
 	"fmt"
-	"time"
+	//"time"
 
 )
 
+func rcv(c1 chan chan chan chan int) {
+
+	c2 := <- c1
+	
+
+
+	c2 <- 1
+}
+
 func main() {
 	
-	boolVar := false
+	c3 := make(chan int)
+	c3 := make(chan int)
+	c3 := make(chan int)
+	c3 := make(chan int)
+	boolVar := make(chan chan chan chan int)
 
-	if !boolVar {
-		fmt.Println("Sleeping")
-		time.Sleep(100*time.Millisecond)
-		fmt.Println("Test ok!")
-	}
+
+	go rcv(boolVar)
+	boolVar <- c3
+
+	b := <- c3
+
+	fmt.Println(b)
 }

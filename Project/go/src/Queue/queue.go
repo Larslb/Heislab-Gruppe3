@@ -9,6 +9,14 @@ import(
 
 var localIp string
 
+
+var InternalOrderChan chan ElevLib.MyOrder
+var ExternalOrderChan chan ElevLib.MyOrder
+var SetLightsChan chan []int
+var DeleteOrderChan chan []int
+var setLightsChan chan []int
+
+
 func setInternalOrder(iOrders []int, floor, currentFloor, dir int) ([]int) {
 	if dir == 1 {
 		if (floor - currentFloor < 0) {
@@ -52,58 +60,62 @@ func setExternalOrder(eOrders [2][ElevLib.N_FLOORS]string, order ElevLib.MyOrder
 	return eOrders
 }
 
-func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor int, dir int)int{
+func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor int, dir int)(int,int){
 	if len(iOrder)==0 {
 		if dir == 1 {
 			for floor := currentFloor; floor < ElevLib.N_FLOORS ; floor++ {
 				if eOrders[0][floor] == localIp { 
-					return floor
+					return dir, floor
 				} else {
-					return -1
+					return dir, -1
 				}
 			}
 		} else if dir == -1 {
 			for floor := currentFloor; floor > -1 ; floor-- {
 				if eOrders[1][floor] == localIp { 
-					return floor
+					return dir, floor
 				} else {
-					return -1
+					return dir, -1
 				}
 			}
 		} else if dir == 0 {
 			for floor := currentFloor; floor < ElevLib.N_FLOORS ; floor++ {
 				if eOrders[0][floor] == localIp { 
-					return floor
+					return 1, floor
 				} else {
-					return -1
+					return dir, -1
 				}
 			}
 			for floor := currentFloor; floor > -1 ; floor-- {
 				if eOrders[1][floor] == localIp { 
-					return floor
+					return -1, floor
 				} else {
-					return -1
+					return dir , -1
 				}
 			}
 			
 		} else {fmt.Println("ERROR: nextOrder bæsj ")
-			return -1
+			return 0,-1
 			}
 	}
 
 	tmpNextOrder := iOrder[0]
 	
 	if dir == 1{ 
-		if eOrders[0][currentFloor] == localIp {
-			return currentFloor
+		for floor := currentFloor; floor < ElevLib.N_FLOORS ; floor++ {
+			if eOrders[0][floor] == localIp {
+				return dir, floor
+			}
 		}
 	} else if dir == -1 {
-		if eOrders[0][currentFloor] == localIp {
-			return currentFloor
+		for floor := currentFloor; floor > -1 ; floor-- {
+			if eOrders[0][floor] == localIp {
+				return dir, floor
+			}
 		}
 	}
 	
-	return tmpNextOrder
+	return dir, tmpNextOrder
 
 }
 
@@ -198,39 +210,125 @@ func Queue_manager(intrOrdChan chan ElevLib.MyOrder, extrOrdChan chan ElevLib.My
 
 // NEW SHIT
 
-func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan ElevLib.MyOrder, startUpQueue chan ElevLib.StartQueue) {
-
-	// case startUpQueue (kan unngå å ta inn internalOrderChan,externalOrderChan... og heller initalisere dem her
-	//    og sende dem ut til EM når EM spør om startUpQueue i initialiseringsfasen
+func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int, localIp string, setLightsOn chan []int) {
 	
 	internalOrders := []int{}
 	externalOrders := [2][ElevLib.N_FLOORS]string{}
 	
+	// Used by func CheckForUpdOrders
+	rdy2rcvUpdate  := false
+	rdy2rcvUpdateChan := make(chan bool)
+	newInternalOrder2check := make(chan ElevLib.MyOrder)
+	newExternalOrder2check := make(chan ElevLib.MyOrder)
 	
-	
-	internalOrderChan := make(chan ElevLib.MyOrder)
-	externalOrderChan := make(chan ElevLib.MyOrder)
-	setLightsChan     := make(chan []int)
 	
 	for{
 		select{
-			case order := <- intrOrdChan:
-			time.Sleep(30*time.Millisecond)
-			fmt.Sprintf("QUEUE: ","Internal order received on floor: %v", order.Floor)
-			internalOrders = setInternalOrder(internalOrders, order.Floor ,current_floor, dir)
 
-			setLightsChan <- []int{ElevLib.BUTTON_COMMAND, order.Floor, 1}
-			fmt.Print("QUEUE: ", "Sending new info on internal orders to MASTER")
-			sendInfoChan <- ElevLib.MyInfo{
-				Ip: localIp,
-				Dir: dir,
-				CurrentFloor: current_floor,
-				InternalOrders: internalOrders,
+
+			case order := <- InternalOrderChan:
+
+				if rdy2rcvUpdate { // only true if checkForUpdateOrders has been spawned
+					newInternalOrder2check <- order
 				}
+
+				time.Sleep(30*time.Millisecond)
+				fmt.Sprintf("QUEUE: ","Internal order received on floor: %v", order.Floor)
+				internalOrders = setInternalOrder(internalOrders, order.Floor ,order.Floor, dir)
+
+				setLightsOn <- []int{ElevLib.BUTTON_COMMAND, order.Floor, 1}
 			
-			case <-startUpQueue:
+				/*fmt.Print("QUEUE: ", "Sending new info on internal orders to MASTER")
+				sendInfoChan <- ElevLib.MyInfo{
+					Ip: localIp,
+					Dir: dir,
+					CurrentFloor: current_floor,
+					InternalOrders: internalOrders,
+					}
+
+				*/
+
+			case order := <- ExternalOrderChan:
+
+				if rdy2rcvUpdate { // only true if checkForUpdateOrders has been spawned
+					newExternalOrder2check <- order
+				}
+
+				//time.Sleep(30*time.Millisecond)
+				fmt.Sprintf("QUEUE: ","External order received on floor: %v", order.Floor)
+				externalOrders = setExternalOrder(externalOrders, order)
+				setLightsOn <- []int{order.ButtonType, order.Floor, 1}
+			
+
+
+			case reqNewOrderFSM := <-rcvFromEMChan:
+				dir, nextFloor := nextOrder(internalOrders, externalOrders, reqNewOrderFSM.Current_floor, reqNewOrderFSM.Direction) // OPPDATER nextOrder to return dir
+
+
+				if nextFloor != -1 {
+					go checkForUpdOrders(reqNewOrderFSM.UpdateOrderChan, newInternalOrder2check, newExternalOrder2check, nextFloor, dir, localIp)
+					rdy2rcvUpdate = true
+
+					// sending order to FSM
+					reqNewOrderFSM.OrderChan <- [2]int{dir, nextFloor}
+					sendReceipt2EM <- dir
+
+				} else {
+					reqNewOrderFSM.OrderChan <- [2]int{dir, nextFloor}
+
+					sendReceipt2EM <- dir
+				}
+
+
+			case delOrder := DeleteOrderChan:
+
+				internalOrders = internalOrders[1:]
+				if delOrder[1] == 1 {
+					externalOrders[ElevLib.BUTTON_CALL_UP][delOrder[0]] = ""
+					
 				
+				} else if delOrder[1] == -1 {
+					externalOrders[ElevLib.BUTTON_CALL_DOWN][delOrder[0]] = ""
+					
+				}
+
+				sendReceipt2EM <- delOrder[0]
 		}
 	}	
 	
+}
+
+func checkForUpdOrders(updateOrderChan chan int, iOrder chan ElevLib.MyOrder, eOrder chan ElevLib.MyOrder, rdy2rcvUpdateChan chan bool, nextFloor int, dir int, localIp string){
+
+	currentNextFloor := nextFloor
+
+	for {
+		select{
+		case <- updateOrderChan: // FSM tell checkForUpdOrders to terminate
+			rdy2rcvUpdateChan <- false
+			return
+
+
+		case order := <- iOrder:
+			if order.Floor < currentNextFloor  && dir == 1 {
+				currentNextFloor = order.Floor
+				updateOrderChan <- currentNextFloor
+			}else if order.Floor > currentNextFloor && dir == -1 {
+				currentNextFloor = order.Floor
+				updateOrderChan <- currentNextFloor
+			}
+
+		case order := <- eOrder:
+
+			if order.Ip == localIp{
+				if order.Floor < currentNextFloor && dir == 1 && order.ButtonType == BUTTON_CALL_UP {
+					currentNextFloor = order.Floor
+					updateOrderChan <- currentNextFloor
+				}else if order.Floor > currentNextFloor && dir == -1 && order.ButtonType == BUTTON_CALL_DOWN{
+					currentNextFloor = order
+					updateOrderChan <- currentNextFloor
+				}
+			}
+		}
+	}
 }
