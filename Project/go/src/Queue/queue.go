@@ -62,6 +62,7 @@ func setExternalOrder(eOrders [2][ElevLib.N_FLOORS]string, order ElevLib.MyOrder
 
 func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor int, dir int)(int,int){
 	if len(iOrder)==0 {
+		fmt.Println("dir ==: ",dir )
 		if dir == 1 {
 			for floor := currentFloor; floor < ElevLib.N_FLOORS ; floor++ {
 				if eOrders[0][floor] == localIp { 
@@ -82,22 +83,20 @@ func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor i
 		} else if dir == 0 {
 			for floor := currentFloor; floor < ElevLib.N_FLOORS ; floor++ {
 				if eOrders[0][floor] == localIp { 
+					fmt.Println(eOrders)
 					return 1, floor
 				} else {
-					return dir, -1
+					return 0, -1
 				}
 			}
 			for floor := currentFloor; floor > -1 ; floor-- {
 				if eOrders[1][floor] == localIp { 
 					return -1, floor
 				} else {
-					return dir , -1
+					return 0 , -1
 				}
 			}
-		} else {
-			fmt.Println("Queue: No orders available")
-			return 0,-1
-		}
+		} 
 	}
 
 	tmpNextOrder := iOrder[0]
@@ -209,19 +208,21 @@ func Queue_manager(intrOrdChan chan ElevLib.MyOrder, extrOrdChan chan ElevLib.My
 
 // NEW SHIT
 
-func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int, localIp string, setLightsOn chan []int, currentfloorchan chan int) {
+func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int, localIpsent string, setLightsOn chan []int, currentfloorchan chan int) {
 	
 	currentFloor := -1
 	direction := 0
-	internalOrders := []int{}
-	externalOrders := [2][ElevLib.N_FLOORS]string{}
+	//internalOrders := []int{}
+	//externalOrders := [2][ElevLib.N_FLOORS]string{""}
 	
 	// Used by func CheckForUpdOrders
+	localIp = localIpsent
 	rdy2rcvUpdate  := false
 	rdy2rcvUpdateChan := make(chan bool)
 	newInternalOrder2check := make(chan ElevLib.MyOrder)
 	newExternalOrder2check := make(chan ElevLib.MyOrder)
-	
+
+	internalOrders, externalOrders := initializeOrders()
 	
 	for{
 		select{
@@ -336,3 +337,15 @@ func checkForUpdOrders(updateOrderChan chan int, iOrder chan ElevLib.MyOrder, eO
 	}
 }
 
+func initializeOrders() ([]int, [2][ElevLib.N_FLOORS]string){
+	internalOrders := []int{}
+	externalOrders := [2][ElevLib.N_FLOORS]string{}
+
+	for i := 0; i < ElevLib.N_FLOORS; i++ {
+		externalOrders[0][i] = ""
+		externalOrders[1][i] = ""
+		
+	}
+
+	return internalOrders, externalOrders
+}

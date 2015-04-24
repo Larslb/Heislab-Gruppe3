@@ -55,6 +55,7 @@ func main() {
 	err := false
 	
 	localIp,_ := Network.GetLocalIP() 
+	fmt.Println("localIp= ",localIp)
 	
 	
 	//newExternalOrderChan := make(chan ElevLib.MyOrder)
@@ -107,7 +108,7 @@ func main() {
 			case requestNewOrder := <-rcvNewReqFromFSMChan:
 				requestNewOrder.Current_floor = current_floor
 				requestNewOrder.Direction = direction
-
+				fmt.Println("MAIN: ", "order is now: currentFloor: ", requestNewOrder.Current_floor, " Direction: ", requestNewOrder.Direction )
 				sendReq2Queue <- requestNewOrder
 				
 				receipt := <- receiptFromQueue  // We wait for Queue to tell us where the elevetor is going
