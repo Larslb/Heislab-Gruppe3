@@ -1,10 +1,10 @@
 package main
 
 import (
-	"Queue"
-	"Driver"
-	"Network"
-	"ElevLib"
+	"./Queue"
+	"./Driver"
+	"./Network"
+	"./ElevLib"
 	"time"
 	"fmt"
 )

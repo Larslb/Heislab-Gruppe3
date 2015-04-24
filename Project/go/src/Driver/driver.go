@@ -3,7 +3,7 @@ package Driver
 import (
 	"fmt"
 	"time"
-	"ElevLib"
+	".././ElevLib"
 )
 
 func ReadElevPanel(buttonChan chan ElevLib.MyOrder){
