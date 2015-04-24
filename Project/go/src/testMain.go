@@ -3,32 +3,22 @@ package main
 import (
 
 	"fmt"
+	"Driver"
 	//"time"
 
 )
 
-func rcv(c1 chan chan chan chan int) {
+func readbuttons(buttonChan chan int){
+	for {
+			for i:=0;i<4;i++{
+			elev_get_button_signal(ElevLib.2,i, buttonChan)
+		}
+	}
 
-	c2 := <- c1
-	
-
-
-	c2 <- 1
 }
 
 func main() {
-	
-	c3 := make(chan int)
-	c3 := make(chan int)
-	c3 := make(chan int)
-	c3 := make(chan int)
-	boolVar := make(chan chan chan chan int)
-
-
-	go rcv(boolVar)
-	boolVar <- c3
-
-	b := <- c3
-
-	fmt.Println(b)
+	buttonChan := make(chan int)
+	go readbuttons(buttonChan)
+	fmt.Println(<-buttonChan)
 }
