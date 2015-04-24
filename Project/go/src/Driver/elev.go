@@ -1,7 +1,7 @@
 package Driver
 import (
 	"ElevLib"
-	"fmt"
+	//"fmt"
 )
 
 
@@ -114,7 +114,7 @@ func elev_set_floor_indicator(floor int){
 
 }
 
-func Elev_get_button_signal(button, floor int, buttonChan chan ElevLib.MyOrder){
+func Elev_get_button_signal(button, floor int) bool {
 	/*if (floor <0 && floor >ElevLib.N_FLOORS) {
 		//errorhandling
 		return err
@@ -135,16 +135,10 @@ func Elev_get_button_signal(button, floor int, buttonChan chan ElevLib.MyOrder){
 		return err
 	}*/
 
-	fmt.Println("button pressed at: ", button, floor, "orders at: ", button_channel_matrix[floor][button])
-
-	if(io_read_bit(button_channel_matrix[floor][button])){
-		fmt.Println("button pressed at: ", button, floor)
-		buttonChan <- ElevLib.MyOrder{
-			Ip: "",
-			ButtonType: button,
-			Floor: floor,
-		}
-		fmt.Println("button pressed at: ", button, floor)
+	if (io_read_bit(button_channel_matrix[floor][button]) != 0){
+		return true
+	}else{
+		return false
 	}
 }
 
