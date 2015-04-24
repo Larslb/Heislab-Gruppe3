@@ -19,6 +19,7 @@ func ReadElevPanel(buttonChan chan ElevLib.MyOrder){
 				}
 			}
 		}
+		time.Sleep(time.Millisecond)
 	}
 }
 
@@ -35,6 +36,7 @@ func ReadFloorPanel(buttonChan chan ElevLib.MyOrder){
 				}
 			}
 		}
+		time.Sleep(time.Millisecond)
 	}
 }
 
@@ -48,7 +50,7 @@ func ReadSensors(sensorChan chan int){  // ENDRET TIL EXPORT FUNC
 				current_floor = tmpVal
 				sensorChan <-tmpVal	
 			}
-		
+		time.Sleep(time.Millisecond)
 	}
 }
 
@@ -61,6 +63,7 @@ func SetLights(setLightsOn chan []int, setLightsOff chan []int) {
 			case lightCommand := <- setLightsOff:
 				elev_set_button_lamp(lightCommand[0], lightCommand[1], lightCommand[2])		
 		}
+		time.Sleep(time.Millisecond)
 	}
 }
 
