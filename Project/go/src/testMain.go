@@ -10,6 +10,7 @@ import (
 )
 
 func main() {
+	fmt.Println("TESTMAIN GO")
 	buttonChan := make(chan ElevLib.MyOrder)
 	buttonChan2 := make(chan ElevLib.MyOrder)
 	go Driver.ReadElevPanel(buttonChan)

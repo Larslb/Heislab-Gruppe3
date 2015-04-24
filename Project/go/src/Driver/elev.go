@@ -1,7 +1,7 @@
 package Driver
 import (
 	".././ElevLib"
-	//"fmt"
+	"fmt"
 )
 
 
@@ -135,6 +135,7 @@ func Elev_get_button_signal(button, floor int) int {
 		return err
 	}
 	fmt.Println(button_channel_matrix[floor][button])*/
+	fmt.Println(io_read_bit(button_channel_matrix[floor][button]))
 	if (io_read_bit(button_channel_matrix[floor][button]) != 0){
 		return 1
 	}else{

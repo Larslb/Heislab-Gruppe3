@@ -9,7 +9,9 @@ import (
 func ReadElevPanel(buttonChan chan ElevLib.MyOrder){
 	for {
 		for i:=0;i<ElevLib.N_FLOORS;i++{
+			//fmt.Println(i)
 			if Elev_get_button_signal(ElevLib.BUTTON_COMMAND,i) == 1 {
+				fmt.Println(i)
 				buttonChan <- ElevLib.MyOrder{
 					Ip: "",
 					ButtonType: ElevLib.BUTTON_COMMAND,
