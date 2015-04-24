@@ -257,7 +257,7 @@ func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int
 				}
 
 				//time.Sleep(30*time.Millisecond)
-				fmt.Sprintf("QUEUE: ","External order received on floor: %v", order.Floor)
+				fmt.Sprintf("QUEUE: ","External order received on floor:", order.Floor)
 				externalOrders = setExternalOrder(externalOrders, order)
 				setLightsOn <- []int{order.ButtonType, order.Floor, 1}
 			

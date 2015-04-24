@@ -6,7 +6,7 @@ import (
 	"ElevLib"
 )
 
-func ReadElevPanel(buttonChan chan ElevLib.MyOrder, read chan bool){
+func ReadElevPanel(buttonChan chan ElevLib.MyOrder){
 	for {
 			for i:=0;i<ElevLib.N_FLOORS;i++{
 			elev_get_button_signal(ElevLib.BUTTON_COMMAND,i, buttonChan)
@@ -38,7 +38,7 @@ func ReadSensors(sensorChan chan int){  // ENDRET TIL EXPORT FUNC
 	}
 }
 
-func setLights(setLightsOn chan []int, setLightsOff chan []int) {
+func SetLights(setLightsOn chan []int, setLightsOff chan []int) {
 
 	for{
 		select {
@@ -163,7 +163,7 @@ func ready2receive(rdy2rcv chan bool, reqNewOrder chan int) {
 	}
 }
 
-func floor_reached(floorReached chan bool, floorSensor chan int, newFloor chan int, floor){
+func floor_reached(floorReached chan int, floorSensor chan int, newFloor chan int, floor int){
 	go2Floor := floor
 	
 	for {
@@ -196,12 +196,14 @@ func FSM(sendReq2EM chan ElevLib.NewReqFSM, status chan int, orderHandledChan ch
 	// Used in goroutine func floorReached()
 	newFloor     := make(chan int)
 	floorReached := make(chan int)
-	
+	reachedFloor := -1
+	fmt.Println("FSM: ", "Starting For Select Routine")	
 	for {
 		select {
 			case order := <-rcvFromQueue:
 
 				if order[1] != -1 {
+					fmt.Println("FSM: Driving ", order[0])
 					
 					elev_set_motor_direction(order[0])
 
@@ -209,34 +211,35 @@ func FSM(sendReq2EM chan ElevLib.NewReqFSM, status chan int, orderHandledChan ch
 				
 					for {
 						select{
-							case floor := <-floorReached:
+							case reachedFloor = <-floorReached:
 								updFromQueue <- 1 // terminate Update routine in queue
 								break;
 
 							case newOrder := <- updFromQueue:
-								newFloor<- newOrder.Floor
+								newFloor<- newOrder
 						}
 					}
 				
 					elev_set_motor_direction(0)
 
-					elev_set_door_open_lamp(value bool)  // MÅ FIKSES PÅ! HOLDES ÅPEN I 3 SEK
+					elev_set_door_open_lamp(true)  // MÅ FIKSES PÅ! HOLDES ÅPEN I 3 SEK
+					time.Sleep(3*time.Second)
+					elev_set_door_open_lamp(false)
 
 
-
-					orderHandledChan <- floor
+					orderHandledChan <- reachedFloor
 
 					// send false til setLights go-routine
 
 					<-setlights
-					if dir == 1 {
-						setLightsOff <- []int{ElevLib.BUTTON_CALL_UP, floor, false}  // MÅ ENDRE PÅ ELEV_SET_LIGHTS fra int til bool
-						setLightsOff <- []int{ElevLib.BUTTON_COMMAND, floor, false}
-					} else if dir == -1 {
-						setLightsOff <- []int{ElevLib.BUTTON_CALL_DOWN, floor, false}
-						setLightsOff <- []int{ElevLib.BUTTON_COMMAND, floor, false}
+					if order[0] == 1 {
+						setLightsOff <- []int{ElevLib.BUTTON_CALL_UP, reachedFloor, 0}  // MÅ ENDRE PÅ ELEV_SET_LIGHTS fra int til bool
+						setLightsOff <- []int{ElevLib.BUTTON_COMMAND, reachedFloor, 0}
+					} else if order[0] == -1 {
+						setLightsOff <- []int{ElevLib.BUTTON_CALL_DOWN, reachedFloor, 0}
+						setLightsOff <- []int{ElevLib.BUTTON_COMMAND, reachedFloor, 0}
 					} else {
-						setLightsOff <- []int{ElevLib.BUTTON_COMMAND, floor, false}
+						setLightsOff <- []int{ElevLib.BUTTON_COMMAND, reachedFloor, 0}
 					}
 
 					rdy2rcv <- true
@@ -245,18 +248,18 @@ func FSM(sendReq2EM chan ElevLib.NewReqFSM, status chan int, orderHandledChan ch
 				}
 			case <-reqNewOrder:
 				sendReq2EM <- ElevLib.NewReqFSM{
-					OrderChan: rcvFromQueue
-					UpdateOrderChan: updFromQueue
-					Current_floor: 0  //no-care?
-					Direction: 0      //no-care?
+					OrderChan: rcvFromQueue,
+					UpdateOrderChan: updFromQueue,
+					Current_floor: 0,  //no-care?
+					Direction: 0,      //no-care?
 				}
 				
 			case <-status: // Brukes når heisen har stått stille en stund
 				sendReq2EM <- ElevLib.NewReqFSM{
-					OrderChan: rcvFromQueue
-					UpdateOrderChan: updFromQueue
-					Current_floor: 0  //no-care?
-					Direction: 0      //no-care?
+					OrderChan: rcvFromQueue,
+					UpdateOrderChan: updFromQueue,
+					Current_floor: 0,  //no-care?
+					Direction: 0,      //no-care?
 				}
 				
 		}

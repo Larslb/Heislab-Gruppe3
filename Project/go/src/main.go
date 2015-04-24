@@ -6,6 +6,7 @@ import (
 	"Network"
 	"ElevLib"
 	"time"
+	"fmt"
 )
 
 
@@ -51,6 +52,7 @@ func main() {
 	// INIT
 	current_floor := -1
 	direction := 0
+	err := false
 	
 	localIp,_ := Network.GetLocalIP() 
 	
@@ -75,24 +77,27 @@ func main() {
 	receiptFromQueue     := make(chan int)
 	currentfloorupdate := make(chan int)
 	setLightsOn := make(chan []int)
-	// rcvCurrentFloorQueue := make(chan chan int)
+	//rcvCurrentFloorQueue := make(chan chan int)
 	
 	
 	// STARTUP PHASE, GO-ROUTINES
-	go Driver.ReadSensor(sensorchan)
-	go Queue.Queue_manager(rcvCurrentFloorQueue, sendReq2Queue, receiptFromQueue, localIp, setLightsOn, currentfloorupdate)
+	go Driver.ReadSensors(sensorchan)
+	go Queue.Queue_manager(sendReq2Queue, receiptFromQueue, localIp, setLightsOn, currentfloorupdate)
 	
 	
 	go Driver.ReadElevPanel(Queue.ExternalOrderChan)
 	go Driver.ReadFloorPanel(Queue.InternalOrderChan)
 	
-	currentfloor,err = Driver.Elev_init(sensorchan)
+	current_floor,err = Driver.Elev_init(sensorchan)
 	if err == true {
 		fmt.Println("ERROR: elev_init() failed!")
 	}
+	fmt.Println("Elev_init Done: current_floor = ", current_floor, " and direction = ", direction)
 	
+
+
 	go Driver.FSM(rcvNewReqFromFSMChan, checkDriverStatus, orderHandledChan, setLightsOff, setlights, currentfloorupdateFSM)
-	go setLights(setLightsOn, setLightsOff)
+	go Driver.SetLights(setLightsOn, setLightsOff)
 	time.Sleep(10*time.Millisecond)
 	checkDriverStatus <-1
 
@@ -111,12 +116,12 @@ func main() {
 				
 				
 			case floor := <-orderHandledChan:
-				Queue.deleteOrderOnFloorChan <- []int{floor, direction}
+				Queue.DeleteOrderChan <- []int{floor, direction}
 
 				receipt := <- receiptFromQueue  // Trenger egentlig ikke å ta imot
 				fmt.Println("Order on floor ", receipt, " in direction ", direction, " was deleted")
 
-				setLights <- false
+				setlights <- false
 
 
 			/*case newExtOrd := <-newExternalOrderChan: // FORELØPIG BARE FOR Å TESTE 1 HEIS

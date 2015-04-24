@@ -95,9 +95,10 @@ func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor i
 				}
 			}
 		} else {
-			fmt.Println("ERROR: nextOrder bæsj ")
+			fmt.Println("Queue: No orders available")
 			return 0,-1
-			}
+		}
+	}
 
 	tmpNextOrder := iOrder[0]
 	
@@ -114,9 +115,7 @@ func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor i
 			}
 		}
 	}
-	
 	return dir, tmpNextOrder
-	}
 }
 
 
@@ -213,6 +212,7 @@ func Queue_manager(intrOrdChan chan ElevLib.MyOrder, extrOrdChan chan ElevLib.My
 func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int, localIp string, setLightsOn chan []int, currentfloorchan chan int) {
 	
 	currentFloor := -1
+	direction := 0
 	internalOrders := []int{}
 	externalOrders := [2][ElevLib.N_FLOORS]string{}
 	
@@ -236,7 +236,7 @@ func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int
 				time.Sleep(30*time.Millisecond)
 				fmt.Sprintf("QUEUE: ","Internal order received on floor: %v", order.Floor)
 
-				internalOrders = setInternalOrder(internalOrders, order.Floor , currentFloor , dir)
+				internalOrders = setInternalOrder(internalOrders, order.Floor , currentFloor , direction)
 
 				setLightsOn <- []int{ElevLib.BUTTON_COMMAND, order.Floor, 1}
 			
@@ -264,11 +264,12 @@ func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int
 
 
 			case reqNewOrderFSM := <-rcvFromEMChan:
+				direction = reqNewOrderFSM.Direction
 				dir, nextFloor := nextOrder(internalOrders, externalOrders, reqNewOrderFSM.Current_floor, reqNewOrderFSM.Direction) // OPPDATER nextOrder to return dir
 
-
+				fmt.Println("Queue: Detected new request. Sending FSM to floor", nextFloor, " in direction ", dir)
 				if nextFloor != -1 {
-					go checkForUpdOrders(reqNewOrderFSM.UpdateOrderChan, newInternalOrder2check, newExternalOrder2check, nextFloor, dir, localIp)
+					go checkForUpdOrders(reqNewOrderFSM.UpdateOrderChan, newInternalOrder2check, newExternalOrder2check, rdy2rcvUpdateChan, nextFloor, dir, localIp)
 					rdy2rcvUpdate = true
 
 					// sending order to FSM
@@ -281,8 +282,7 @@ func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int
 					sendReceipt2EM <- dir
 				}
 
-
-			case delOrder := DeleteOrderChan:
+			case delOrder := <-DeleteOrderChan:
 
 				internalOrders = internalOrders[1:]
 				if delOrder[1] == 1 {
@@ -324,14 +324,15 @@ func checkForUpdOrders(updateOrderChan chan int, iOrder chan ElevLib.MyOrder, eO
 		case order := <- eOrder:
 
 			if order.Ip == localIp{
-				if order.Floor < currentNextFloor && dir == 1 && order.ButtonType == BUTTON_CALL_UP {
+				if order.Floor < currentNextFloor && dir == 1 && order.ButtonType == ElevLib.BUTTON_CALL_UP {
 					currentNextFloor = order.Floor
 					updateOrderChan <- currentNextFloor
-				}else if order.Floor > currentNextFloor && dir == -1 && order.ButtonType == BUTTON_CALL_DOWN{
-					currentNextFloor = order
+				}else if order.Floor > currentNextFloor && dir == -1 && order.ButtonType == ElevLib.BUTTON_CALL_DOWN{
+					currentNextFloor = order.Floor
 					updateOrderChan <- currentNextFloor
 				}
 			}
 		}
 	}
 }
+
