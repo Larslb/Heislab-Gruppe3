@@ -113,6 +113,7 @@ func main() {
 				
 				receipt := <- receiptFromQueue  // We wait for Queue to tell us where the elevetor is going
 				direction = receipt
+				fmt.Println("MAIN: Ready to trigger on new cases")
 				
 				
 				

@@ -276,11 +276,13 @@ func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int
 					// sending order to FSM
 					reqNewOrderFSM.OrderChan <- [2]int{dir, nextFloor}
 					sendReceipt2EM <- dir
+					fmt.Println("Queue: Ready to trigger on new cases")
 
 				} else {
 					reqNewOrderFSM.OrderChan <- [2]int{dir, nextFloor}
 
 					sendReceipt2EM <- dir
+					fmt.Println("Queue: Ready to trigger on new cases")
 				}
 
 			case delOrder := <-DeleteOrderChan:
