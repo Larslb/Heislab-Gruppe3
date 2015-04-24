@@ -1,6 +1,7 @@
 package Driver
 import (
 	"ElevLib"
+	"fmt"
 )
 
 
@@ -142,6 +143,7 @@ func elev_get_button_signal(button, floor int, buttonChan chan ElevLib.MyOrder){
 			ButtonType: button,
 			Floor: floor,
 		}
+		fmt.Println("button pressed at: ", button, floor)
 	}
 }
 
