@@ -9,8 +9,7 @@ import(
 func ReadElevPanel(buttonChan chan ElevLib.MyOrder){
 	for {
 		for i:=0;i<ElevLib.N_FLOORS;i++{
-			//fmt.Println(i)
-			if Elev_get_button_signal(ElevLib.BUTTON_COMMAND,i) == 1 {
+			if Elev_get_button_signal(ElevLib.BUTTON_COMMAND,i) != 0 {
 				buttonChan <- ElevLib.MyOrder{
 					Ip: "",
 					ButtonType: ElevLib.BUTTON_COMMAND,
@@ -18,7 +17,7 @@ func ReadElevPanel(buttonChan chan ElevLib.MyOrder){
 				}
 			}
 		}
-		time.Sleep(10*time.Millisecond)
+		time.Sleep(80*time.Millisecond)
 	}
 }
 
@@ -26,28 +25,41 @@ func ReadFloorPanel(buttonChan chan ElevLib.MyOrder){
 	for{
 		for i:=0;i<ElevLib.N_BUTTONS-1;i++{
 			for j:=0;j<ElevLib.N_FLOORS;j++{
-				if Elev_get_button_signal(i,j) == 1{
+				if Elev_get_button_signal(i,j) != 0{
 					buttonChan <- ElevLib.MyOrder{
 						Ip: "",
 						ButtonType: i,
 						Floor: j,
 					}
+
 				}
 			}
 		}
-		time.Sleep(10*time.Millisecond)
+		time.Sleep(80*time.Millisecond)
 	}
 }
 
 func ReadSensors(sensorChan chan int){  // ENDRET TIL EXPORT FUNC
 	
-	current_floor := -1
 	
+	
+	for { // INIT ONLY
+		tmpVal1 := Elev_get_floor_sensor_signal()
+		if tmpVal1 != -1 {
+			sensorChan <-tmpVal1
+			break
+		}
+	}
+
+	current_floor := -1
+
 	for {
-		tmpVal := Elev_get_floor_sensor_signal()
-			if tmpVal != -1 && tmpVal != current_floor {
-				current_floor = tmpVal
-				sensorChan <-tmpVal	
+		tmpVal2 := Elev_get_floor_sensor_signal()
+			if tmpVal2 != -1 && tmpVal2 != current_floor {
+
+				fmt.Println(current_floor)
+				current_floor = tmpVal2
+				sensorChan <- current_floor
 			}
 		time.Sleep(time.Millisecond)
 	}
@@ -68,28 +80,32 @@ func SetLights(setLightsOn chan []int, setLightsOff chan []int) {
 
 func floor_reached(floorReached chan int, floorSensor chan int, newFloor chan int, floor int){
 	go2Floor := floor
-	
+	fmt.Println("goroutine floorReached starting")
 	for {
 		select {
 			case go2Floor = <- newFloor: // funker dette?
 			case current_floor := <- floorSensor:
+				fmt.Println("floorsensor kicked in!: ", current_floor, "go to floor: ", go2Floor)
 				elev_set_floor_indicator(current_floor)
 				if current_floor == go2Floor {
+					fmt.Println("FLOOR REACHED!!")
 					floorReached <- current_floor
 					return
 				}
 				time.Sleep(30*time.Millisecond)
 		}
 	}
+	fmt.Println("goroutine floorReached closed")
 }
 
 
 func FSM(sendReq2EM chan ElevLib.NewReqFSM, orderHandledChan chan int, setLightsOff chan []int, setlights chan bool, currentfloorupdate chan int) {
 
-
 	rcvFromQueue := make(chan [2]int)
 	updFromQueue := make(chan int)
+	killThreadChan := make(chan bool)
 	var askNewOrder bool = true
+	var breakbool bool = false
 	
 	// Used in goroutine func floorReached()
 	newFloor     := make(chan int)
@@ -114,23 +130,28 @@ func FSM(sendReq2EM chan ElevLib.NewReqFSM, orderHandledChan chan int, setLights
 					for {
 						select{
 							case reachedFloor = <-floorReached:
-								updFromQueue <- 1 // terminate Update routine in queue
-								break;
+								elev_set_motor_direction(0)
+								killThreadChan <- true // terminate Update routine in queue
+								breakbool = true
 
 							case newOrder := <- updFromQueue:
 								newFloor<- newOrder
 						}
+						if breakbool {
+							break;
+						}
 					}
-				
-					elev_set_motor_direction(0)
+					breakbool = false
+					fmt.Println("FSM: Door opening")
+					//elev_set_motor_direction(0)
 
 					elev_set_door_open_lamp(true)  // MÅ FIKSES PÅ! HOLDES ÅPEN I 3 SEK
 					time.Sleep(3*time.Second)
 					elev_set_door_open_lamp(false)
 
-
+					fmt.Println("E")
 					orderHandledChan <- reachedFloor
-
+					fmt.Println("knfjfkef")
 					// send false til setLights go-routine
 
 					<-setlights
@@ -148,7 +169,7 @@ func FSM(sendReq2EM chan ElevLib.NewReqFSM, orderHandledChan chan int, setLights
 					askNewOrder = true
 				}else{
 					askNewOrder = true
-					time.Sleep(10*time.Millisecond)
+					time.Sleep(5*time.Second)
 				}
 
 			default:
@@ -156,8 +177,9 @@ func FSM(sendReq2EM chan ElevLib.NewReqFSM, orderHandledChan chan int, setLights
 					sendReq2EM <- ElevLib.NewReqFSM{
 					OrderChan: rcvFromQueue,
 					UpdateOrderChan: updFromQueue,
-					Current_floor: 0,  //no-care?
-					Direction: 0,      //no-care?
+					KillThread: killThreadChan,
+					//Current_floor: 0,  //no-care?
+					//Direction: 0,      //no-care?
 					}
 					askNewOrder = false
 				}

@@ -39,6 +39,6 @@ type MyElev struct {
 type NewReqFSM struct {
 	OrderChan chan [2]int
 	UpdateOrderChan chan int
-	Current_floor int
-	Direction int
+	KillThread chan bool
+	
 }

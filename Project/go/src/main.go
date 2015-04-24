@@ -76,8 +76,14 @@ func main() {
 	// COMMUNICATION BETWEEN EM AND QUEUE
 	sendReq2Queue 	     := make(chan ElevLib.NewReqFSM)
 	receiptFromQueue     := make(chan int)
-	currentfloorupdate := make(chan int)
+	updCrntFlrAndDir := make(chan []int)
 	setLightsOn := make(chan []int)
+	deleteOrderChan := make(chan []int)
+
+	//FoR QUEUE AND DRIVER
+	InternalOrderChan := make(chan ElevLib.MyOrder)
+	ExternalOrderChan := make(chan ElevLib.MyOrder)
+
 
 	go Driver.ReadSensors(sensorchan)
 	//rcvCurrentFloorQueue := make(chan chan int)
@@ -86,11 +92,11 @@ func main() {
 	
 	// STARTUP PHASE, GO-ROUTINES
 	//go Driver.ReadSensors(sensorchan)
-	go Queue.Queue_manager(sendReq2Queue, receiptFromQueue, localIp, setLightsOn, currentfloorupdate)
-	
+	go Driver.ReadElevPanel(InternalOrderChan)
+	go Driver.ReadFloorPanel(ExternalOrderChan)
+	time.Sleep(10*time.Millisecond)
+	go Queue.Queue_manager(sendReq2Queue, receiptFromQueue, localIp, setLightsOn, updCrntFlrAndDir, InternalOrderChan, ExternalOrderChan, deleteOrderChan)
 
-	go Driver.ReadElevPanel(Queue.ExternalOrderChan)
-	go Driver.ReadFloorPanel(Queue.InternalOrderChan)
 	
 	//fmt.Println("Elev_init Done: current_floor = ", current_floor, " and direction = ", direction)
 	
@@ -104,19 +110,19 @@ func main() {
 	for{
 		select{
 			case requestNewOrder := <-rcvNewReqFromFSMChan:
-				requestNewOrder.Current_floor = current_floor
-				requestNewOrder.Direction = direction
-				fmt.Println("MAIN: ", "order is now: currentFloor: ", requestNewOrder.Current_floor, " Direction: ", requestNewOrder.Direction )
+				//requestNewOrder.Current_floor = current_floor
+				//requestNewOrder.Direction = direction
+				//fmt.Println("MAIN: ", "order is now: currentFloor: ", requestNewOrder.Current_floor, " Direction: ", requestNewOrder.Direction )
 				sendReq2Queue <- requestNewOrder
 				
 				receipt := <- receiptFromQueue  // We wait for Queue to tell us where the elevetor is going
 				direction = receipt
-				fmt.Println("MAIN: Ready to trigger on new cases")
+				//fmt.Println("MAIN: Ready to trigger on new cases")
 				
 				
 				
 			case floor := <-orderHandledChan:
-				Queue.DeleteOrderChan <- []int{floor, direction}
+				deleteOrderChan <- []int{floor, direction}
 
 				receipt := <- receiptFromQueue  // Trenger egentlig ikke å ta imot
 				fmt.Println("Order on floor ", receipt, " in direction ", direction, " was deleted")
@@ -124,12 +130,13 @@ func main() {
 				setlights <- false
 
 
-			/*case newExtOrd := <-newExternalOrderChan: // FORELØPIG BARE FOR Å TESTE 1 HEIS
-				newExtOrd.Ip = localIp
-				Queue.externalOrderChan <- newExtOrd*/
+			//case newExtOrd := <-newExternalOrderChan: // FORELØPIG BARE FOR Å TESTE 1 HEIS
+			//	newExtOrd.Ip = localIp
+			//	ExternalOrderChan <- newExtOrd
 
 			case current_floor = <-sensorchan:
-				currentfloorupdate <- current_floor
+				fmt.Println("CurrentFloor is: ", current_floor)
+				updCrntFlrAndDir <- []int{current_floor,direction}
 				select{
 					case currentfloorupdateFSM <- current_floor:
 					case <-time.After(1*time.Second):
