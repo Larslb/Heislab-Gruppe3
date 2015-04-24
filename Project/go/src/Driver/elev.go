@@ -1,7 +1,7 @@
 package Driver
 import (
 	".././ElevLib"
-	//"fmt"
+	"fmt"
 )
 
 
@@ -25,7 +25,7 @@ var button_channel_matrix = [ElevLib.N_FLOORS][ElevLib.N_BUTTONS]int {
 func Elev_init(sensorChan chan int) (int, bool) {
 	elev_set_motor_direction(0)
 	
-	if(io_init() != 1){
+	if(Io_init() != 1){
 		return -1, true;
 	}
 
@@ -43,23 +43,23 @@ func Elev_init(sensorChan chan int) (int, bool) {
 	}
 	
 	elev_set_motor_direction(-1)
-
+	fmt.Println("Elev: ", "Waiting for sensors")
 	current_floor := <- sensorChan
 	elev_set_motor_direction(0)
 	elev_set_floor_indicator(current_floor)
 
-	return current_floor, false
+	return 1, false
 }
 
 func elev_set_motor_direction(dir int){
 	if (dir == 0){
-		io_write_analog(MOTOR,0)
+		Io_write_analog(MOTOR,0)
 	} else if (dir > 0){
-		io_clear_bit(MOTORDIR)
-		io_write_analog(MOTOR,2800)
+		Io_clear_bit(MOTORDIR)
+		Io_write_analog(MOTOR,2800)
 	} else if (dir < 0){
-		io_set_bit(MOTORDIR)
-		io_write_analog(MOTOR,2800)
+		Io_set_bit(MOTORDIR)
+		Io_write_analog(MOTOR,2800)
 	}
 }
 
@@ -67,21 +67,21 @@ func elev_set_motor_direction(dir int){
 
 func elev_set_door_open_lamp(value bool){
 	if(value){
-		io_set_bit(LIGHT_DOOR_OPEN)
+		Io_set_bit(LIGHT_DOOR_OPEN)
 	} else{
-		io_clear_bit(LIGHT_DOOR_OPEN)
+		Io_clear_bit(LIGHT_DOOR_OPEN)
 	}
 
 }
 
-func elev_get_floor_sensor_signal() int {
-	if(io_read_bit(SENSOR_FLOOR1)==1){
+func Elev_get_floor_sensor_signal() int {
+	if Io_read_bit(SENSOR_FLOOR1) == 1{
 		return 0;
-	} else if (io_read_bit(SENSOR_FLOOR2)==1){
+	} else if Io_read_bit(SENSOR_FLOOR2) == 1{
 		return 1;
-	} else if (io_read_bit(SENSOR_FLOOR3)==1){
+	} else if Io_read_bit(SENSOR_FLOOR3) == 1{
 		return 2;
-	} else if (io_read_bit(SENSOR_FLOOR4)==1){
+	} else if Io_read_bit(SENSOR_FLOOR4) == 1{
 		return 3;
 	} else{
 		return -1;
@@ -100,15 +100,15 @@ func elev_set_floor_indicator(floor int){
 
 	
 	if (floor & 0x02) != 0 { 
-		io_set_bit(LIGHT_FLOOR_IND1)
+		Io_set_bit(LIGHT_FLOOR_IND1)
 	} else{
-		io_clear_bit(LIGHT_FLOOR_IND1)
+		Io_clear_bit(LIGHT_FLOOR_IND1)
 	}	
 
 	if (floor & 0x01) != 0 { 
-		io_set_bit(LIGHT_FLOOR_IND2)
+		Io_set_bit(LIGHT_FLOOR_IND2)
 	} else{
-		io_clear_bit(LIGHT_FLOOR_IND2)
+		Io_clear_bit(LIGHT_FLOOR_IND2)
 	}	
 
 
@@ -136,7 +136,7 @@ func Elev_get_button_signal(button, floor int) int {
 	}
 	fmt.Println(button_channel_matrix[floor][button])*/
 	//fmt.Println(io_read_bit(button_channel_matrix[floor][button]))
-	if (io_read_bit(/*button_channel_matrix[floor][button]*/ 0x300+21) != 0){
+	if Io_read_bit(button_channel_matrix[floor][button]) != 0 {
 		return 1
 	}else{
 		return 0
@@ -166,8 +166,8 @@ func elev_set_button_lamp(button int, floor int, value int){
 	}*/
 
 	if(value == 1){
-		io_set_bit(lamp_channel_matrix[floor][button])
+		Io_set_bit(lamp_channel_matrix[floor][button])
 	} else {
-		io_clear_bit(lamp_channel_matrix[floor][button])
+		Io_clear_bit(lamp_channel_matrix[floor][button])
 	}
 }

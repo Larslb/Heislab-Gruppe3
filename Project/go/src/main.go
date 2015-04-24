@@ -52,7 +52,7 @@ func main() {
 	// INIT
 	current_floor := -1
 	direction := 0
-	err := false
+	//err := false
 	
 	localIp,_ := Network.GetLocalIP() 
 	fmt.Println("localIp= ",localIp)
@@ -60,13 +60,13 @@ func main() {
 	
 	//newExternalOrderChan := make(chan ElevLib.MyOrder)
 	
-	
+	Driver.Io_init()
 	
 	// NEW CHANNELS
 	sensorchan := make(chan int)
 	// COMMUNICATION BETWEEN EM AND FSM
 	rcvNewReqFromFSMChan := make(chan ElevLib.NewReqFSM)
-	checkDriverStatus    := make(chan int) // Only used when there have been no orders for a while
+	//checkDriverStatus    := make(chan int) // Only used when there have been no orders for a while
 	orderHandledChan	 := make(chan int)
 	setlights 			 := make(chan bool)
 	setLightsOff := make(chan []int)
@@ -78,29 +78,27 @@ func main() {
 	receiptFromQueue     := make(chan int)
 	currentfloorupdate := make(chan int)
 	setLightsOn := make(chan []int)
+
+	go Driver.ReadSensors(sensorchan)
 	//rcvCurrentFloorQueue := make(chan chan int)
-	
+	current_floor,_ = Driver.Elev_init(sensorchan)
+	fmt.Println("Elev_init Done: current_floor = ", current_floor, " and direction = ", direction)
 	
 	// STARTUP PHASE, GO-ROUTINES
-	go Driver.ReadSensors(sensorchan)
+	//go Driver.ReadSensors(sensorchan)
 	go Queue.Queue_manager(sendReq2Queue, receiptFromQueue, localIp, setLightsOn, currentfloorupdate)
 	
-	
+
 	go Driver.ReadElevPanel(Queue.ExternalOrderChan)
 	go Driver.ReadFloorPanel(Queue.InternalOrderChan)
 	
-	current_floor,err = Driver.Elev_init(sensorchan)
-	if err == true {
-		fmt.Println("ERROR: elev_init() failed!")
-	}
-	fmt.Println("Elev_init Done: current_floor = ", current_floor, " and direction = ", direction)
+	//fmt.Println("Elev_init Done: current_floor = ", current_floor, " and direction = ", direction)
 	
 
 
-	go Driver.FSM(rcvNewReqFromFSMChan, checkDriverStatus, orderHandledChan, setLightsOff, setlights, currentfloorupdateFSM)
+	go Driver.FSM(rcvNewReqFromFSMChan, orderHandledChan, setLightsOff, setlights, currentfloorupdateFSM)
 	go Driver.SetLights(setLightsOn, setLightsOff)
 	time.Sleep(10*time.Millisecond)
-	checkDriverStatus <-1
 
 	// EVENT MANAGER
 	for{
@@ -138,5 +136,6 @@ func main() {
 				}
 				
 		}
+		time.Sleep(time.Millisecond)
 	}
 }

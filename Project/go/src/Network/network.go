@@ -2,7 +2,7 @@ package Network
 import(
 	"fmt"
 	"net"
-	"ElevLib"
+	"./../ElevLib"
 	"time"
 	"encoding/json"
 	"strconv"

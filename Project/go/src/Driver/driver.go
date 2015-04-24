@@ -1,6 +1,6 @@
 package Driver
 
-import (
+import(
 	"fmt"
 	"time"
 	".././ElevLib"
@@ -11,7 +11,6 @@ func ReadElevPanel(buttonChan chan ElevLib.MyOrder){
 		for i:=0;i<ElevLib.N_FLOORS;i++{
 			//fmt.Println(i)
 			if Elev_get_button_signal(ElevLib.BUTTON_COMMAND,i) == 1 {
-				fmt.Println(i)
 				buttonChan <- ElevLib.MyOrder{
 					Ip: "",
 					ButtonType: ElevLib.BUTTON_COMMAND,
@@ -19,7 +18,7 @@ func ReadElevPanel(buttonChan chan ElevLib.MyOrder){
 				}
 			}
 		}
-		time.Sleep(time.Millisecond)
+		time.Sleep(10*time.Millisecond)
 	}
 }
 
@@ -36,7 +35,7 @@ func ReadFloorPanel(buttonChan chan ElevLib.MyOrder){
 				}
 			}
 		}
-		time.Sleep(time.Millisecond)
+		time.Sleep(10*time.Millisecond)
 	}
 }
 
@@ -45,7 +44,7 @@ func ReadSensors(sensorChan chan int){  // ENDRET TIL EXPORT FUNC
 	current_floor := -1
 	
 	for {
-		tmpVal := elev_get_floor_sensor_signal()
+		tmpVal := Elev_get_floor_sensor_signal()
 			if tmpVal != -1 && tmpVal != current_floor {
 				current_floor = tmpVal
 				sensorChan <-tmpVal	
@@ -67,119 +66,6 @@ func SetLights(setLightsOn chan []int, setLightsOff chan []int) {
 	}
 }
 
-/*
-func Fsm(nextFloorChan chan int, deleteOrderOnFloorChan chan int, currentFloorChan chan int, directionChan chan int, setLightsChan chan []int) {
-
-	current_floor := -1
-	direction     := 0
-	next_floor    := -1
-	errorVar      := false
-	
-	sensorChan := make(chan int)
-	go readSensors(sensorChan)
-	go setLights(setLightsChan)
-
-	// defer close sensorChan	
-	current_floor, errorVar = elev_init(sensorChan)
-	
-	
-	if !errorVar {
-		fmt.Println("ERROR: elev.init() did not succeed ")
-		// ERRORHANDLING - INIT DID NOT SUCCEED
-	}
-
-
-	// VI HAR INGEN SET LIGHTS ON/OFF HÅNDTERING PÅ TVERS AV HEISENE
-	
-	STATE := ElevLib.WAIT
-	
-	for {
-		switch STATE {
-		
-		
-			case ElevLib.WAIT:
-				fmt.Println("FSM: ", "STATE = WAIT")
-				currentFloorChan <- current_floor
-				next_floor = <-nextFloorChan
-				
-				if next_floor == -1 {
-					fmt.Println("FSM: ","current_floor = ", current_floor, "next_floor = ", next_floor)
-					direction = 0
-					directionChan <- direction
-					
-					time.Sleep(30*time.Millisecond)
-				} else if next_floor < current_floor {
-					fmt.Println("FSM: ","current_floor = ", current_floor, "next_floor = ", next_floor)
-					direction = -1
-					fmt.Println(direction)
-					directionChan <- direction
-					elev_set_motor_direction(direction)
-					STATE = ElevLib.MOVING
-					fmt.Println("FSM: ","MOVING DOWN")
-					time.Sleep(30*time.Millisecond)
-					
-				} else if next_floor > current_floor {
-					fmt.Println("FSM: ","current_floor = ", current_floor, "next_floor = ", next_floor)
-					direction = 1
-					directionChan <- direction
-					elev_set_motor_direction(direction)
-					STATE = ElevLib.MOVING
-					fmt.Println("FSM: ","MOVING UP")
-					time.Sleep(30*time.Millisecond)
-					
-				} else if next_floor == current_floor {
-					fmt.Println("FSM: ","current_floor = ", current_floor, "next_floor = ", next_floor)
-					directionChan <- direction
-					STATE = ElevLib.OPEN_DOOR
-					time.Sleep(30*time.Millisecond)
-					
-				}
-				
-			case ElevLib.MOVING:
-				fmt.Println("FSM: ","STATE = MOVING")
-				current_floor = <- sensorChan
-	
-				currentFloorChan <- current_floor
-				next_floor = <- nextFloorChan
-				directionChan <- direction
-				
-				if current_floor == next_floor {
-					STATE = ElevLib.OPEN_DOOR
-				}
-				
-			case ElevLib.OPEN_DOOR:
-				fmt.Println("FSM: ","STATE = OPEN_DOOR")
-				elev_set_motor_direction(0)
-				elev_set_door_open_lamp(true)
-				t := time.Now()
-				t2 := t.Add(3*time.Second)
-				for !t.After(t2) {
-					currentFloorChan <- current_floor
-					next_floor = <- nextFloorChan
-					directionChan <- direction
-
-					if current_floor == next_floor{
-						t = time.Now()
-						t2 =t.Add(3*time.Second)
-					}
-				}
-				elev_set_door_open_lamp(false)				
-
-				deleteOrderOnFloorChan <- current_floor
-				STATE = ElevLib.WAIT				
-		}
-	}
-}*/
-
-
-func ready2receive(rdy2rcv chan bool, reqNewOrder chan int) {
-	for {
-		if <-rdy2rcv{
-			reqNewOrder <- 1
-		}
-	}
-}
-
 func floor_reached(floorReached chan int, floorSensor chan int, newFloor chan int, floor int){
 	go2Floor := floor
 	
@@ -198,23 +84,22 @@ func floor_reached(floorReached chan int, floorSensor chan int, newFloor chan in
 }
 
 
-func FSM(sendReq2EM chan ElevLib.NewReqFSM, status chan int, orderHandledChan chan int, setLightsOff chan []int, setlights chan bool, currentfloorupdate chan int) {
+func FSM(sendReq2EM chan ElevLib.NewReqFSM, orderHandledChan chan int, setLightsOff chan []int, setlights chan bool, currentfloorupdate chan int) {
 
 
 	rcvFromQueue := make(chan [2]int)
 	updFromQueue := make(chan int)
-	
-	// Used in func ready2receive
-	rdy2rcv	 := make(chan bool)
-	reqNewOrder  := make(chan int)
-	
-	go ready2receive(rdy2rcv, reqNewOrder)
+	var askNewOrder bool = true
 	
 	// Used in goroutine func floorReached()
 	newFloor     := make(chan int)
 	floorReached := make(chan int)
 	reachedFloor := -1
-	fmt.Println("FSM: ", "Starting For Select Routine")	
+
+
+	fmt.Println("FSM: ", "Starting For Select Routine")
+
+
 	for {
 		select {
 			case order := <-rcvFromQueue:
@@ -259,27 +144,26 @@ func FSM(sendReq2EM chan ElevLib.NewReqFSM, status chan int, orderHandledChan ch
 						setLightsOff <- []int{ElevLib.BUTTON_COMMAND, reachedFloor, 0}
 					}
 
-					rdy2rcv <- true
+					//rdy2rcv <- true
+					askNewOrder = true
 				}else{
-					time.Sleep(1*time.Second)
+					askNewOrder = true
+					time.Sleep(10*time.Millisecond)
 				}
-			case <-reqNewOrder:
-				sendReq2EM <- ElevLib.NewReqFSM{
+
+			default:
+				if askNewOrder {
+					sendReq2EM <- ElevLib.NewReqFSM{
 					OrderChan: rcvFromQueue,
 					UpdateOrderChan: updFromQueue,
 					Current_floor: 0,  //no-care?
 					Direction: 0,      //no-care?
-				}
-				
-			case <-status: // Brukes når heisen har stått stille en stund
-				sendReq2EM <- ElevLib.NewReqFSM{
-					OrderChan: rcvFromQueue,
-					UpdateOrderChan: updFromQueue,
-					Current_floor: 0,  //no-care?
-					Direction: 0,      //no-care?
+					}
+					askNewOrder = false
 				}
 				
 		}
+		time.Sleep(time.Millisecond)
 	}
 }
 

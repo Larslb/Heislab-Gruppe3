@@ -234,7 +234,7 @@ func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int
 					newInternalOrder2check <- order
 				}
 
-				time.Sleep(30*time.Millisecond)
+				time.Sleep(time.Millisecond)
 				fmt.Sprintf("QUEUE: ","Internal order received on floor: %v", order.Floor)
 
 				internalOrders = setInternalOrder(internalOrders, order.Floor , currentFloor , direction)
@@ -300,7 +300,8 @@ func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int
 				sendReceipt2EM <- delOrder[0]
 			case currentFloor = <-currentfloorchan:
 		}
-	}	
+		time.Sleep(time.Millisecond)
+	}
 	
 }
 
