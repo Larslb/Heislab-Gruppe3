@@ -40,5 +40,4 @@ type NewReqFSM struct {
 	OrderChan chan [2]int
 	UpdateOrderChan chan int
 	KillThread chan bool
-	
 }

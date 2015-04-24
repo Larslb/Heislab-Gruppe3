@@ -94,7 +94,6 @@ func main() {
 	//go Driver.ReadSensors(sensorchan)
 	go Driver.ReadElevPanel(InternalOrderChan)
 	go Driver.ReadFloorPanel(ExternalOrderChan)
-	time.Sleep(10*time.Millisecond)
 	go Queue.Queue_manager(sendReq2Queue, receiptFromQueue, localIp, setLightsOn, updCrntFlrAndDir, InternalOrderChan, ExternalOrderChan, deleteOrderChan)
 
 	
