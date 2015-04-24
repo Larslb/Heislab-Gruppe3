@@ -24,13 +24,22 @@ func ReadFloorPanel(buttonChan chan ElevLib.MyOrder){
 	}
 }
 
-func ReadSensors(sensorChan chan int){  // ENDRET TIL EXPORT FUNC
+func ReadSensors(sensorChan1 chan int,sensorChan2 chan int,sensorChan3 chan int){  // ENDRET TIL EXPORT FUNC
 	
-	for { 
-		tmpVal := elev_get_floor_sensor_signal()
-		if tmpVal != -1 {
-			sensorChan <- tmpVal		
+	current_floor := -1
+
+	for {
+
+		select{
+			case sensorChan1 <- current_floor:
+			case sensorChan2 <- current_floor:
+			default:
+				tmpVal := elev_get_floor_sensor_signal()
+				if tmpVal != -1 {
+				sensorChan <- tmpVal		
 		}
+		}
+		
 	}
 }
 
