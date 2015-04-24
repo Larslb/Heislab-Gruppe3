@@ -13,10 +13,10 @@ var lamp_channel_matrix = [ElevLib.N_FLOORS][ElevLib.N_BUTTONS]int {
 }
 
 var button_channel_matrix = [ElevLib.N_FLOORS][ElevLib.N_BUTTONS]int {
-{BUTTON_UP1, ElevLib.BUTTON_DOWN1, BUTTON_COMMAND1},
-{BUTTON_UP2, ElevLib.BUTTON_DOWN2, BUTTON_COMMAND2},
-{BUTTON_UP3, ElevLib.BUTTON_DOWN3, BUTTON_COMMAND3},
-{BUTTON_UP4, ElevLib.BUTTON_DOWN4, BUTTON_COMMAND4},
+{ElevLib.BUTTON_UP1, ElevLib.BUTTON_DOWN1, BUTTON_COMMAND1},
+{ElevLib.BUTTON_UP2, ElevLib.BUTTON_DOWN2, BUTTON_COMMAND2},
+{ElevLib.BUTTON_UP3, ElevLib.BUTTON_DOWN3, BUTTON_COMMAND3},
+{ElevLib.BUTTON_UP4, ElevLib.BUTTON_DOWN4, BUTTON_COMMAND4},
 }
 
 
@@ -115,7 +115,7 @@ func elev_set_floor_indicator(floor int){
 }
 
 func Elev_get_button_signal(button, floor int) int {
-	if (floor <0 && floor >ElevLib.N_FLOORS) {
+	/*if (floor <0 && floor >ElevLib.N_FLOORS) {
 		//errorhandling
 		return err
 	}	
@@ -134,7 +134,7 @@ func Elev_get_button_signal(button, floor int) int {
 		//errorhandling
 		return err
 	}
-	fmt.Println(button_channel_matrix[floor][button])
+	fmt.Println(button_channel_matrix[floor][button])*/
 	if (io_read_bit(button_channel_matrix[floor][button]) != 0){
 		return 1
 	}else{
