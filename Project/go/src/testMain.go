@@ -4,21 +4,25 @@ import (
 
 	"fmt"
 	"Driver"
-	//"time"
+	"ElevLib"
+	"time"
 
 )
 
-func readbuttons(buttonChan chan int){
-	for {
-			for i:=0;i<4;i++{
-			elev_get_button_signal(ElevLib.2,i, buttonChan)
-		}
-	}
-
-}
-
 func main() {
-	buttonChan := make(chan int)
-	go readbuttons(buttonChan)
-	fmt.Println(<-buttonChan)
+	buttonChan := make(chan ElevLib.MyOrder)
+	//buttonChan2 := make(chan ElevLib.MyOrder)
+	go Driver.ReadElevPanel(buttonChan)
+	//go Driver.ReadFloorPanel(buttonChan2)
+	for {
+		select{
+		case buttonpress:= <-buttonChan:
+			fmt.Println(buttonpress.ButtonType, buttonpress.Floor)
+		//case buttonpressed := <-buttonChan2:
+		//	fmt.Println(buttonpressed.ButtonType, buttonpressed.Floor)
+
+		}
+		
+	}
+	time.Sleep(100*time.Second)
 }

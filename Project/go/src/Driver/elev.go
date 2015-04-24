@@ -39,7 +39,6 @@ func Elev_init(sensorChan chan int) (int, bool) {
 		if(i != ElevLib.N_FLOORS-1){
 			elev_set_button_lamp(ElevLib.BUTTON_CALL_UP,i,0)
 		}
-
 		elev_set_button_lamp(ElevLib.BUTTON_COMMAND,i,0)
 	}
 	
@@ -115,7 +114,7 @@ func elev_set_floor_indicator(floor int){
 
 }
 
-func elev_get_button_signal(button, floor int, buttonChan chan ElevLib.MyOrder){
+func Elev_get_button_signal(button, floor int, buttonChan chan ElevLib.MyOrder){
 	/*if (floor <0 && floor >ElevLib.N_FLOORS) {
 		//errorhandling
 		return err
@@ -136,8 +135,10 @@ func elev_get_button_signal(button, floor int, buttonChan chan ElevLib.MyOrder){
 		return err
 	}*/
 
-	
-	if(io_read_bit(button_channel_matrix[floor][button]) == 1){
+	fmt.Println("button pressed at: ", button, floor, "orders at: ", button_channel_matrix[floor][button])
+
+	if(io_read_bit(button_channel_matrix[floor][button])){
+		fmt.Println("button pressed at: ", button, floor)
 		buttonChan <- ElevLib.MyOrder{
 			Ip: "",
 			ButtonType: button,

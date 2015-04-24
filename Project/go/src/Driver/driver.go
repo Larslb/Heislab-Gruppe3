@@ -9,7 +9,7 @@ import (
 func ReadElevPanel(buttonChan chan ElevLib.MyOrder){
 	for {
 			for i:=0;i<ElevLib.N_FLOORS;i++{
-			elev_get_button_signal(ElevLib.BUTTON_COMMAND,i, buttonChan)
+			Elev_get_button_signal(ElevLib.BUTTON_COMMAND,i, buttonChan)
 		}
 	}
 }
@@ -18,7 +18,7 @@ func ReadFloorPanel(buttonChan chan ElevLib.MyOrder){
 	for{
 		for i:=0;i<ElevLib.N_BUTTONS-1;i++{
 			for j:=0;j<ElevLib.N_FLOORS;j++{
-				elev_get_button_signal(i, j, buttonChan)
+				Elev_get_button_signal(i, j, buttonChan)
 			}
 		}
 	}
