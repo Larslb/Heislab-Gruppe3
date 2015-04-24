@@ -3,8 +3,8 @@ package main
 import (
 
 	"fmt"
-	"Driver"
-	"ElevLib"
+	"./Driver"
+	"./ElevLib"
 	"time"
 
 )
