@@ -60,36 +60,39 @@ func main() {
 	
 	
 	// NEW CHANNELS
-	
+	sensorchan := make(chan int)
 	// COMMUNICATION BETWEEN EM AND FSM
 	rcvNewReqFromFSMChan := make(chan ElevLib.NewReqFSM)
 	checkDriverStatus    := make(chan int) // Only used when there have been no orders for a while
 	orderHandledChan	 := make(chan int)
 	setlights 			 := make(chan bool)
+	setLightsOff := make(chan []int)
+	currentfloorupdateFSM	:= make(chan int)
 	
 	
 	// COMMUNICATION BETWEEN EM AND QUEUE
 	sendReq2Queue 	     := make(chan ElevLib.NewReqFSM)
 	receiptFromQueue     := make(chan int)
+	currentfloorupdate := make(chan int)
+	setLightsOn := make(chan []int)
 	// rcvCurrentFloorQueue := make(chan chan int)
 	
 	
 	// STARTUP PHASE, GO-ROUTINES
-	setLightsOn := make(chan []int)
-	go Queue.Queue_manager(rcvCurrentFloorQueue, sendReq2Queue, receiptFromQueue, localIp, setLightsOn)
+	go Driver.ReadSensor(sensorchan)
+	go Queue.Queue_manager(rcvCurrentFloorQueue, sendReq2Queue, receiptFromQueue, localIp, setLightsOn, currentfloorupdate)
 	
 	
 	go Driver.ReadElevPanel(Queue.ExternalOrderChan)
 	go Driver.ReadFloorPanel(Queue.InternalOrderChan)
 	
-
-	initDriver := make(chan chan int)
-	getCurrent_floorChan := make(chan int)
-	go Driver.FSM(rcvNewReqFromFSMChan, checkDriverStatus, orderHandledChan, setLightsOn, initDriver, setlights)
-
-	time.Sleep(10*time.Millisecond)
-	initDriver <- getCurrent_floorChan
-	current_floor <- getCurrent_floorChan
+	currentfloor,err = Driver.Elev_init(sensorchan)
+	if err == true {
+		fmt.Println("ERROR: elev_init() failed!")
+	}
+	
+	go Driver.FSM(rcvNewReqFromFSMChan, checkDriverStatus, orderHandledChan, setLightsOff, setlights, currentfloorupdateFSM)
+	go setLights(setLightsOn, setLightsOff)
 	time.Sleep(10*time.Millisecond)
 	checkDriverStatus <-1
 
@@ -119,6 +122,14 @@ func main() {
 			/*case newExtOrd := <-newExternalOrderChan: // FORELØPIG BARE FOR Å TESTE 1 HEIS
 				newExtOrd.Ip = localIp
 				Queue.externalOrderChan <- newExtOrd*/
+
+			case current_floor = <-sensorchan:
+				currentfloorupdate <- current_floor
+				select{
+					case currentfloorupdateFSM <- current_floor:
+					case <-time.After(1*time.Second):
+				}
+				
 		}
 	}
 }

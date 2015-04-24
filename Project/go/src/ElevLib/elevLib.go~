@@ -6,6 +6,7 @@ const (
 	BUTTON_CALL_UP int = 0
 	BUTTON_CALL_DOWN int = 1
 	BUTTON_COMMAND int = 2
+	
 	WAIT int = 0
 	MOVING int = 1
 	OPEN_DOOR int = 2

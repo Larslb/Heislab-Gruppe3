@@ -75,11 +75,8 @@ func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor i
 				if eOrders[1][floor] == localIp { 
 					return dir, floor
 				} else {
-<<<<<<< HEAD
 					return dir, -1
-=======
-					return dir,-1
->>>>>>> 720ff592ab45816c3b540d3b6951141a4a67abcf
+
 				}
 			}
 		} else if dir == 0 {
@@ -94,31 +91,18 @@ func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor i
 				if eOrders[1][floor] == localIp { 
 					return -1, floor
 				} else {
-<<<<<<< HEAD
 					return dir , -1
-=======
-					return dir, -1
->>>>>>> 720ff592ab45816c3b540d3b6951141a4a67abcf
 				}
 			}
-			
-		} else {fmt.Println("ERROR: nextOrder bæsj ")
-<<<<<<< HEAD
+		} else {
+			fmt.Println("ERROR: nextOrder bæsj ")
 			return 0,-1
-=======
-			return -1,-1
->>>>>>> 720ff592ab45816c3b540d3b6951141a4a67abcf
 			}
-	}
 
 	tmpNextOrder := iOrder[0]
 	
 	if dir == 1{ 
-<<<<<<< HEAD
 		for floor := currentFloor; floor < ElevLib.N_FLOORS ; floor++ {
-=======
-		for floor := currentFloor; floor < ElevLib.N_FLOORS ; floor++ {	
->>>>>>> 720ff592ab45816c3b540d3b6951141a4a67abcf
 			if eOrders[0][floor] == localIp {
 				return dir, floor
 			}
@@ -128,17 +112,11 @@ func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor i
 			if eOrders[0][floor] == localIp {
 				return dir, floor
 			}
-<<<<<<< HEAD
 		}
 	}
 	
 	return dir, tmpNextOrder
-=======
 	}
-	
-	return 0,tmpNextOrder
->>>>>>> 720ff592ab45816c3b540d3b6951141a4a67abcf
-
 }
 
 
@@ -232,8 +210,9 @@ func Queue_manager(intrOrdChan chan ElevLib.MyOrder, extrOrdChan chan ElevLib.My
 
 // NEW SHIT
 
-func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int, localIp string, setLightsOn chan []int) {
+func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int, localIp string, setLightsOn chan []int, currentfloorchan chan int) {
 	
+	currentFloor := -1
 	internalOrders := []int{}
 	externalOrders := [2][ElevLib.N_FLOORS]string{}
 	
@@ -256,7 +235,8 @@ func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int
 
 				time.Sleep(30*time.Millisecond)
 				fmt.Sprintf("QUEUE: ","Internal order received on floor: %v", order.Floor)
-				internalOrders = setInternalOrder(internalOrders, order.Floor ,order.Floor, dir)
+
+				internalOrders = setInternalOrder(internalOrders, order.Floor , currentFloor , dir)
 
 				setLightsOn <- []int{ElevLib.BUTTON_COMMAND, order.Floor, 1}
 			
@@ -315,6 +295,7 @@ func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int
 				}
 
 				sendReceipt2EM <- delOrder[0]
+			case currentFloor = <-currentfloorchan:
 		}
 	}	
 	
