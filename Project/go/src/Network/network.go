@@ -218,6 +218,7 @@ func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelO
 			case NewInfo := <-recvInfo:
 				//OPPDATERE INFOMAP MED INFOEN MOTTATT PÅ SOCKET
 				infomap[NewInfo.Ip] = NewInfo
+				fmt.Println("INFO RECIEVED!!")
 			case NewOrder := <-recvOrder:
 				handledorder := orderhandler(NewOrder)
 
@@ -564,7 +565,12 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 	closing := make(chan int, 1)
 	stopTCP := make(chan int, 1)
 	stopRead := make(chan int, 1)
-
+	newInfo := ElevLib.MyInfo{
+		Ip: localIP,
+		Dir: 1,
+		CurrentFloor: 1,
+		InternalOrders: []int{1,2,3},
+	}
 
 	for {
 
@@ -584,6 +590,9 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 				slave = true
 				fmt.Println("IM SLAVE")
 				go Slave(newInfoChan, externalOrderChan, newExternalOrderChan, masterChan, closing, stopRead)
+				time.Sleep(time.Second)
+				newInfoChan <- newInfo
+				fmt.Println("info sent")
 				<- closing
 				slave = false
 
