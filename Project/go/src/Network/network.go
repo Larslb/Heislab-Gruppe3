@@ -324,9 +324,11 @@ func ReadALL(writing chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan Elev
 				var temp ElevLib.MyElev
 				json.Unmarshal(buffer[:msglen], &temp)
 				if temp.MessageType == "INFO" {
+					fmt.Println("INFO recieved")
 					recvInfo <-temp.Info
 					writing<-1
 				}else if temp.MessageType == "ORDER" {
+					fmt.Println("ORDER recieved")
 					recvOrder <-temp.Order
 					writing<-1
 				}
