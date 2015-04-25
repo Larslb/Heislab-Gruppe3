@@ -194,14 +194,16 @@ func search(eOrders [2][ElevLib.N_FLOORS]string, currentFloor int) (ElevLib.Next
 
 func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor int, dir int) (ElevLib.NextOrder) {
 	
-	// MÅ OPPDATERE RETURVARIABEL TIL Å VÆRE NEXTFLOOR TYPE
+	fmt.Println("nextOrderfunc: internalOrders = ", iOrder, ", externalOrders = ", eOrders)
+
+
 	var nxtOrder ElevLib.NextOrder
 	var eTmpFloor int
 	var eTmpDir int
 
 	if currentFloor == -1{
 		nxtOrder = ElevLib.NextOrder{
-				ButtonType: ElevLib.BUTTON_COMMAND,
+				ButtonType: -2,
 				Floor: -1,
 				Direction: 0,
 		}
@@ -295,7 +297,7 @@ func deleteOrders(internalOrders []int, externalOrders [2][ElevLib.N_FLOORS]stri
 
 // NYTT
 
-func Queue_Manager(sendChannels2fsm ElevLib.OrderHandler2FSMchannels, setLightsOn chan []int, currentFloorChan chan int, localIpsent string){  // TA INN NØDVENDIGE CHANNELS
+func Queue_Manager(sendChannels2fsm chan ElevLib.OrderHandler2FSMchannels, internalOrdersFromSensor chan ElevLib.MyOrder, externalOrdersFromSensor chan ElevLib.MyOrder, setLightsOn chan []int, localIpsent string, floorSensor chan int){  // TA INN NØDVENDIGE CHANNELS
 
 	localIp = localIpsent
 
@@ -304,18 +306,11 @@ func Queue_Manager(sendChannels2fsm ElevLib.OrderHandler2FSMchannels, setLightsO
 	orderHandlerIsAlive := false
 	iOrder2orderHandler := make(chan ElevLib.MyOrder)
 	eOrder2orderHandler := make(chan ElevLib.MyOrder)
-
-	// CHANNELS COMMUNICATING WITH DRIVER
-	orderChan     := make(chan ElevLib.NextOrder)
-	updOrderChan  := make(chan ElevLib.NextOrder)
-	killGoRoutine := make(chan bool)
-	fsmRdy4nextOrder := make(chan bool)
-	floorReachedChan := make(chan bool)
-	deleteOrderChan  := make(chan ElevLib.NextOrder)
-	currentFloorUpdateChan := make(chan int)
+	sendChannels2oh     := make(chan ElevLib.Queue2OrderHandlerchannels)
 
 
-	// DEFER CLOSE CHANNELS ?
+
+	// SEARCH FUNCTION IS NOT WORKING
 
 	for {
 		select {
@@ -328,18 +323,9 @@ func Queue_Manager(sendChannels2fsm ElevLib.OrderHandler2FSMchannels, setLightsO
 					iOrder2orderHandler <- iOrder
 
 				} else {
+					go orderHandler(sendChannels2fsm, sendChannels2oh, floorSensor)
 
-					oh2fsmChannels := ElevLib.OrderHandler2FSMchannels{
-						OrderChan: orderChan,
-						UpdateOrderChan: updOrderChan,
-						KillGoRoutine: killGoRoutine,
-						Rdy4nextOrder: fsmRdy4nextOrder,
-						FloorReachedChan: floorReachedChan,
-						DeleteOrder: deleteOrderChan,
-						Currentfloorupdate: currentFloorUpdateChan,
-					}
 					
-					sendChannels2fsm <- oh2fsmChannels
 
 					QM2orderHandlerChannels := ElevLib.Queue2OrderHandlerchannels{
 							IOrdersChan: iOrder2orderHandler,
@@ -347,7 +333,10 @@ func Queue_Manager(sendChannels2fsm ElevLib.OrderHandler2FSMchannels, setLightsO
 							IsAliveChan: orderHandlerIsAliveChan,
 					}
 
-					go orderHandler(oh2fsmChannels, QM2orderHandlerChannels, currentFloorChan)
+					fmt.Println("Queue: sending channels to orderHandler")      // NÅ HENGER orderHANDLER
+					sendChannels2oh <- QM2orderHandlerChannels
+
+					iOrder2orderHandler <- iOrder
 				}
 
 
@@ -359,17 +348,7 @@ func Queue_Manager(sendChannels2fsm ElevLib.OrderHandler2FSMchannels, setLightsO
 					eOrder2orderHandler <- eOrder
 
 				} else {
-					oh2fsmChannels := ElevLib.OrderHandler2FSMchannels{
-						OrderChan: orderChan,
-						UpdateOrderChan: updOrderChan,
-						KillGoRoutine: killGoRoutine,
-						Rdy4nextOrder: fsmRdy4nextOrder,
-						FloorReachedChan: floorReachedChan,
-						DeleteOrder: deleteOrderChan,
-						Currentfloorupdate: currentFloorUpdateChan,
-					}
-
-					sendChannels2fsm <- oh2fsmChannels
+					go orderHandler(sendChannels2fsm, sendChannels2oh, floorSensor)
 
 					QM2orderHandlerChannels := ElevLib.Queue2OrderHandlerchannels{
 							IOrdersChan: iOrder2orderHandler,
@@ -377,7 +356,10 @@ func Queue_Manager(sendChannels2fsm ElevLib.OrderHandler2FSMchannels, setLightsO
 							IsAliveChan: orderHandlerIsAliveChan,
 					}
 
-					go orderHandler(oh2fsmChannels, QM2orderHandlerChannels, currentFloorChan)
+					sendChannels2oh <- QM2orderHandlerChannels
+
+					eOrder2orderHandler <- eOrder
+
 				}
 
 			case orderHandlerIsAlive = <- orderHandlerIsAliveChan:
@@ -387,85 +369,129 @@ func Queue_Manager(sendChannels2fsm ElevLib.OrderHandler2FSMchannels, setLightsO
 	}
 }
 
-func orderHandler(channels2fsm chan ElevLib.OrderHandler2FSMchannels, channelsFromQM ElevLib.Queue2OrderHandlerchannels, currentFloorChan chan int) {
+func orderHandler(channels2fsm chan ElevLib.OrderHandler2FSMchannels, channelsFromQM chan ElevLib.Queue2OrderHandlerchannels, floorSensor chan int) {
+
 	
+	fromQM := <- channelsFromQM
+	fromQM.IsAliveChan <- true
+
 	currentFloor := -1
 	direction    :=  0
 
-	internalOrders = []int{}
-	externalOrders = [2][ElevLib.N_FLOORS]string{}
+	internalOrders := []int{}
+	externalOrders := [2][ElevLib.N_FLOORS]string{}
 
-	lastOrder    := ElevLib.NextOrder{}
-	floorReached := false
-	killOrderHandler := false
+	lastOrder         := ElevLib.NextOrder{}
+	lastOrderFinished := false
+	floorReached      := false
+	killOrderHandler  := false
+	floor_reached_isAlive := false
+	driver_isAlive    := false
 
+	orderChan     := make(chan ElevLib.NextOrder)
+	updOrderChan  := make(chan ElevLib.NextOrder)
+	killGoRoutine := make(chan bool)
+	fsmRdy4nextOrder := make(chan bool)
+	floorReachedChan := make(chan bool)
+	deleteOrderChan  := make(chan ElevLib.NextOrder)
+	currentFloorUpdateChan := make(chan int)
+	
+	oh2fsmChannels := ElevLib.OrderHandler2FSMchannels{
+						OrderChan: orderChan,
+						UpdateOrderChan: updOrderChan,
+						KillGoRoutine: killGoRoutine,
+						FsmRdy4nextOrder: fsmRdy4nextOrder,
+						FloorReachedChan: floorReachedChan,
+						DeleteOrder: deleteOrderChan,
+						Currentfloorupdate: currentFloorUpdateChan,
+					}
+	
 
-	// DEFER CLOSE CHANNELS ?
+	channels2fsm <- oh2fsmChannels
 
 	for {
 		select {
-			case iOrder := <- channelsFromQM.iOrderChan:
+			case iOrder := <- fromQM.IOrdersChan:
 
+				// FIKSE SET INTERNAL ORDERS OG SET EXTERNAL ORDERS 
+
+				fmt.Println(" sagfhjhgfdsafjk      ", currentFloor)
 				if currentFloor != -1{
 					internalOrders := setInternalOrder(internalOrders, iOrder.Floor , currentFloor , direction)
+
 					nxtOrder := nextOrder(internalOrders, externalOrders, currentFloor, direction)
 
-					if nxtOrder != lastOrder && !floorReached {
-						channels2fsm.UpdateOrderChan <- nxtOrder
+					if nxtOrder != lastOrder && !floorReached && driver_isAlive {  // SENDER NY NÅR VI TRYKKER PÅ SAMME KNAPP 2 GANGER. MEN IKKE 3
+						updOrderChan <- nxtOrder
 						lastOrder = nxtOrder
 					}
 					// SEND UPDATE INFO TO MASTER
 				}
 
 
-			case eOrder := <- channelsFromQM.eOrdersChan:
+			case eOrder := <- fromQM.EOrdersChan:
 
 				if currentFloor != -1 {
 					externalOrders = setExternalOrder(externalOrders, eOrder)
 					nxtOrder := nextOrder(internalOrders, externalOrders, currentFloor, direction)
 
-					if nxtOrder != lastOrder && !floorReached{
-						channels2fsm.UpdateOrderChan <- nxtOrder
+					if nxtOrder != lastOrder && !floorReached && driver_isAlive {
+						updOrderChan <- nxtOrder
 						lastOrder = nxtOrder
 					}
 				}
 
+			case <-fsmRdy4nextOrder:
+				floor_reached_isAlive = true
+				driver_isAlive = true
 
-			case <-channelsFromQM.fsmRdy4NextOrder:
-
+				fmt.Println("orderHandler: Current Floor = ", currentFloor)
 				nxtOrder := nextOrder(internalOrders, externalOrders, currentFloor, direction)
 
-				if nxtOrder.Floor == -1 {  // NO PENDING ORDERS TO HANDLE
+				fmt.Println("orderHandler: Direction = ", nxtOrder.Direction, ", Next Floor = ", nxtOrder.Floor, ", ButtonType = ", nxtOrder.ButtonType)
+				fmt.Println(" ")
+				if nxtOrder.Floor == -1 && lastOrderFinished {  // NO PENDING ORDERS TO HANDLE
 					killOrderHandler = true
-					channels2fsm.KillGoRoutine <- true
+					killGoRoutine <- true
+					driver_isAlive = false
 				} else {
-					channels2fsm.OrderChan <- nxtOrder
+					orderChan <- nxtOrder
 				}
 
-			case delOrder := channelsFromQM.DeleteOrderChan:
+			case delOrder := <-deleteOrderChan:
 
 				if delOrder == lastOrder {
 					internalOrders, externalOrders = deleteOrders(internalOrders, externalOrders, delOrder)
+					lastOrderFinished = true
 					// SEND UPDATE INFO TO MASTER
-
 				} else {
 					// ERROR
 				}
+				floor_reached_isAlive = false
 
-			case floorReached = <- channelsFromQM.FloorReachedChan:
+			case floorReached = <- floorReachedChan:
 
-			case currentFloor = <- currentFloorChan:
-				channels2fsm.Currentfloorupdate <- currentFloor
+			case currentFloor = <- floorSensor:
+				fmt.Println("orderHandler: Current Floor = ", currentFloor)
+				// MÅ BARE SENDE DERSOM floor_reached KJØRER
+				if floor_reached_isAlive {
+				fmt.Println("orderHandler: Sending update on current_floor")
+				currentFloorUpdateChan <- currentFloor
+				fmt.Println("UPDATE COMPLETE")
+				fmt.Println(" ")
+
+			}
 				// SEND UPDATE INFO TO MASTER
 
 		}
 
 		if killOrderHandler {
-			channelsFromQM.IsAliveChan <- false
+			fromQM.IsAliveChan <- false
 			// SEND UPDATE INFO TO MASTER
 		}
 	}
-	
+	fmt.Println("Queue: orderHandler killed")
+	fmt.Println(" ")
 }
 
 

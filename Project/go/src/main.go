@@ -16,6 +16,79 @@ import (
 
 
 func main() {
+
+
+
+	// DETTE ER NYTT (Se lenger ned for det gamle)
+
+	localIp,_ := Network.GetLocalIP()
+	fmt.Println("MAIN: localIp= ",localIp)
+
+	
+	
+	sensorchan 		  := make(chan int)
+	externalOrderChan := make(chan ElevLib.MyOrder)
+	internalOrderChan := make(chan ElevLib.MyOrder)
+
+	oh2fsmChans       := make(chan ElevLib.OrderHandler2FSMchannels)
+	send2fsm		  := make(chan ElevLib.OrderHandler2FSMchannels)
+
+	setLightsOn		  := make(chan []int)
+	setLightsOff      := make(chan []int)
+	//currentFloorChan  := make(chan int)
+	//currentFloorUdateFSM := make(chan int)
+	
+
+	go Driver.ReadElevPanel(internalOrderChan)
+	go Driver.ReadFloorPanel(externalOrderChan)
+	go Driver.ReadSensors(sensorchan)
+	go Driver.SetLights(setLightsOn, setLightsOff)
+
+	current_floor, err := Driver.Elev_init(sensorchan)
+	if err {
+		fmt.Println("MAIN: Could not initiate elevator!")
+	}
+
+	time.Sleep(time.Second)
+
+	fmt.Println("MAIN: Elevator initiated to floor ", current_floor)
+	fmt.Println(" ")
+
+	go Queue.Queue_Manager(oh2fsmChans, internalOrderChan, externalOrderChan, setLightsOn, localIp, sensorchan)
+	go Driver.Fsm(send2fsm, setLightsOff)
+
+	fmt.Println("MAIN: Ready to synchronize Queue and Fsm")
+	fmt.Println(" ")
+
+	
+	for{
+		select{
+			case initiateOrderHandling := <-oh2fsmChans:
+				fmt.Println("MAIN: Received channels from orderHandler. Sending them to Fsm.")
+				fmt.Println(" ")
+				send2fsm <- initiateOrderHandling
+			
+			/*case current_floor := <-sensorchan:
+				fmt.Println("MAIN: currentFloor is ", current_floor)
+				
+				// GÅR DET FOR TREIGT Å OPPDATERE FSM GJENNOM ORDERHANDLER??
+				currentFloorChan <- current_floor
+				fmt.Println("MAIN: Current Floor updated throughout")
+			*/
+			case <-time.After(200*time.Millisecond):
+				time.Sleep(10*time.Millisecond)
+				
+		}
+		time.Sleep(10*time.Millisecond)
+	}
+
+
+
+
+	// DETTE ER GAMMELT
+
+
+
 	/*
 	//killAllConnections()
 
@@ -49,6 +122,8 @@ func main() {
 
 	*/
 	
+	/*
+
 	// INIT
 	current_floor := -1
 	direction := 0
@@ -119,6 +194,7 @@ func main() {
 	//go Network.Network(newInfoChan, externalOrderChan ,newExternalOrderChan)
 	fmt.Println("MAIN:", "GOING IN FOOR LOOP")
 	// EVENT MANAGER
+
 	for{
 		select{
 			case requestNewOrder := <-rcvNewReqFromFSMChan:
@@ -141,11 +217,11 @@ func main() {
 
 				setlights <- false
 
-			/*
-			case newExtOrd := <-newExternalOrderChan: // FORELØPIG BARE FOR Å TESTE 1 HEIS
-				newExtOrd.Ip = localIp
-				ExternalOrderChan <- newExtOrd
-			*/
+			//
+			//case newExtOrd := <-newExternalOrderChan: // FORELØPIG BARE FOR Å TESTE 1 HEIS
+			//	newExtOrd.Ip = localIp
+			//	ExternalOrderChan <- newExtOrd
+			
 			case current_floor = <-sensorchan:
 				fmt.Println("CurrentFloor is: ", current_floor)
 				updateCurrentFloor <- current_floor
@@ -157,4 +233,5 @@ func main() {
 		}
 		time.Sleep(time.Millisecond)
 	}
+	*/
 }

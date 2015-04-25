@@ -469,8 +469,8 @@ func ConnectToIP(IP string)(*net.TCPConn, bool){
 
 func Network(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.MyOrder, newExternalOrderChan chan ElevLib.MyOrder) {
 	writeToSocketmap := make(chan int,1)
-	//recvInfo := make(chan ElevLib.MyInfo)
-	//recvOrder := make(chan ElevLib.MyOrder)
+	recvInfo := make(chan ElevLib.MyInfo)
+	recvOrder := make(chan ElevLib.MyOrder)
 
 
 

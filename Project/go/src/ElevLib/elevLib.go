@@ -46,7 +46,7 @@ type OrderHandler2FSMchannels struct { // NY
 	OrderChan chan NextOrder
 	UpdateOrderChan chan NextOrder
 	KillGoRoutine chan bool
-	Rdy4nextOrder chan bool
+	FsmRdy4nextOrder chan bool
 	FloorReachedChan chan bool
 	DeleteOrder chan NextOrder
 	Currentfloorupdate chan int

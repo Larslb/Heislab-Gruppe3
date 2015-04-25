@@ -43,7 +43,8 @@ func Elev_init(sensorChan chan int) (int, bool) {
 	}
 	
 	elev_set_motor_direction(-1)
-	fmt.Println("Elev: ", "Waiting for sensors")
+	fmt.Println(" ")
+	//fmt.Println("Elev: ", "Waiting for sensors")
 	current_floor := <- sensorChan
 	elev_set_motor_direction(0)
 	elev_set_floor_indicator(current_floor)

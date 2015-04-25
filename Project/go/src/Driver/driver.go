@@ -80,112 +80,125 @@ func SetLights(setLightsOn chan []int, setLightsOff chan []int) {
 }
 
 func floor_reached(floorReached chan ElevLib.NextOrder, floorSensor chan int, newOrder chan ElevLib.NextOrder, order ElevLib.NextOrder){
+	
+	
+
 	go2Order := order
-	fmt.Println("goroutine floorReached starting")
+	
 	for {
 		select {
-			case go2Order = <- newOrder: // funker dette?
+			case go2Order = <- newOrder:
 			case current_floor := <- floorSensor:
-				fmt.Println("floorsensor kicked in!: ", current_floor, "go to floor: ", go2Order.Floor)
+				
 				elev_set_floor_indicator(current_floor)
 				if current_floor == go2Order.Floor {
-					fmt.Println("FLOOR REACHED!!")
+					
 					floorReached <- go2Order
 					return
 				}
-				time.Sleep(30*time.Millisecond)
+				time.Sleep(time.Millisecond)
 		}
 	}
-	fmt.Println("goroutine floorReached closed")
+	fmt.Println("floor_reached: FLOOR REACHED!")
+	
 }
 
-// NYTT 
+// NYTT
 
-func Fsm( rcvChannelsFromMAIN chan ElevLib.OrderHandler2FSMchannels, setLightsOff chan []int, currentFloorUpdate chan int) {
 
-	nextOrderChan := make(chan ElevLib.NextOrder)
-	killGo2NextFloor := make(chan bool)
-	floorReached := make(chan ElevLib.NextOrder)
-	boolFloorReachedChan := make(chan bool)
-	newNextOrder := make(chan ElevLib.NextOrder)
+func driver(channels ElevLib.OrderHandler2FSMchannels, killDrive chan bool, setLightsOff chan []int) {
+
+
+	breakbool := false
+	killBool  := false
 	var reachedFloor ElevLib.NextOrder
 
-	// DENNE ER LITT QUICKFIX
-	firstOrderChan := make(chan ElevLib.NextOrder)
+	
+	floorReached := make(chan ElevLib.NextOrder)
+	newNextOrder := make(chan ElevLib.NextOrder)
 
-	for {
-		select {
+	channels.FsmRdy4nextOrder <- true
+	for{
+		select{
+			case order := <- channels.OrderChan:
 
-			case order <-nextOrderChan:
 
-				firstOrderChan <- order
+
+				fmt.Println("driver: Order = ", order, " received")
+				
+				go floor_reached(floorReached, channels.Currentfloorupdate, newNextOrder, order)
 
 				elev_set_motor_direction(order.Direction)
-
-					
 				
-					for {
-						select{
-							case reachedFloor = <-floorReached:
-								elev_set_motor_direction(0)
-								boolFloorReachedChan <- true
-								breakbool = true
-
-							case newOrder := <- rcvChannelsFromMAIN.UpdateOrderChan:
-								newNextOrder<- newOrder
-						}
-						if breakbool {
-							break;
-						}
+				for {
+					select{
+						case reachedFloor = <-floorReached:
+							elev_set_motor_direction(0)
+							channels.FloorReachedChan <- true
+							breakbool = true
+						case newOrder := <- channels.UpdateOrderChan:
+							newNextOrder <- newOrder
+							fmt.Println("driver: UPDATED Order = ", order, " received")
 					}
-					breakbool = false
+					if breakbool {
+						break;
+					}
+				}
+					
+				breakbool = false
 
-					rcvChannelsFromMAIN.DeleteOrder <- reachedFloor
+				channels.DeleteOrder <- reachedFloor
 
-					if reachedFloor.Direction == 1 && reachedFloor.ButtonType == ElevLib.BUTTON_CALL_UP{
+				if reachedFloor.Direction == 1 && reachedFloor.ButtonType == ElevLib.BUTTON_CALL_UP{
 					setLightsOff <- []int{ ElevLib.BUTTON_CALL_UP, reachedFloor.Floor, 0 }
 					setLightsOff <- []int{ ElevLib.BUTTON_COMMAND, reachedFloor.Floor, 0 }
-					} else if reachedFloor.Direction == -1 && reachedFloor.ButtonType == ElevLib.BUTTON_CALL_DOWN{
-							setLightsOff <- []int{ ElevLib.BUTTON_CALL_DOWN, reachedFloor.Floor, 0 }
-							setLightsOff <- []int{ ElevLib.BUTTON_COMMAND, reachedFloor.Floor, 0 }
-					} else {
-						setLightsOff <- []int{ ElevLib.BUTTON_COMMAND, reachedFloor.Floor, 0 }
-					}
+				} else if reachedFloor.Direction == -1 && reachedFloor.ButtonType == ElevLib.BUTTON_CALL_DOWN{
+					setLightsOff <- []int{ ElevLib.BUTTON_CALL_DOWN, reachedFloor.Floor, 0 }
+					setLightsOff <- []int{ ElevLib.BUTTON_COMMAND, reachedFloor.Floor, 0 }
+				} else {
+					setLightsOff <- []int{ ElevLib.BUTTON_COMMAND, reachedFloor.Floor, 0 }
+				}
 
-					fmt.Println("FSM: Door opening")
-					elev_set_door_open_lamp(true)  // MÅ FIKSES PÅ! HOLDES ÅPEN I 3 SEK
-					time.Sleep(3*time.Second)
-					elev_set_door_open_lamp(false)
+				fmt.Println("driver: Door opening")
+				elev_set_door_open_lamp(true)
+				time.Sleep(3*time.Second)
+				elev_set_door_open_lamp(false)
+				channels.FsmRdy4nextOrder <- true
 
-				
-			case channels := <-rcvChannelsFromMAIN:
+			case <-killDrive:
+				killBool = true
 
-
-				go floor_reached(floorReached, channels.Currentfloorupdate, newNextOrder, firstOrderChan)
-				go go2NextFloor(channels.OrderChan, nextOrderChan, channels.FloorReachedChan, boolFloorReachedChan, channels.KillGoRoutine)
 		}
+		if killBool {
+			break
+		}
+		time.Sleep(time.Millisecond)
 	}
+	fmt.Println("Fms: driver killed")
+	fmt.Println(" ")
 }
 
-func go2NextFloor(rcvNextOrder chan ElevLib.NextOrder, nextOrderChan chan ElevLib.NextOrder, killGo2NextFloor chan bool, toQueueFloorReachedChan chan bool, floorReachedChanFSM chan bool, killGoRoutine chan bool) {
-	breakBool := false
+func Fsm( rcvChannelsFromQueue chan ElevLib.OrderHandler2FSMchannels, setLightsOff chan []int) {
+	
+
+	var killGoroutines chan bool
+	killDrive := make(chan bool)
 
 	for {
 		select {
-			case nxtOrder :=  <- rcvNextOrder:
-				nextOrderChan <- nxtOrder
+			case channels := <-rcvChannelsFromQueue:
+				killGoroutines = channels.KillGoRoutine
 
-			case <-floorReachedChanFSM:
-				toQueueFloorReachedChan <- true
+				go driver(channels, killDrive, setLightsOff)
 
-			case <-killGo2NextFloor:
-				breakBool = true
+			case <-killGoroutines:
+				killDrive <- true
 		}
-		if breakBool {
-			break
-		}
+		time.Sleep(time.Millisecond)
 	}
 }
+
+
 
 // GAMMELT
 
