@@ -130,7 +130,6 @@ func ReadAliveMessageUDP(){
 		conn.ReadFromUDP(buffer)
 		s := string(buffer[0:15]) //slipper nil i inlesningen
 		addresses[string(s)] = time.Now()
-		PrintAddresses()
 		if s!= "" {
 			for key, value := range addresses{
 				if time.Now().Sub(value) > 100*time.Millisecond && key != localIP{
@@ -145,8 +144,10 @@ func ReadAliveMessageUDP(){
 }
 
 func PrintAddresses() {
-	for key,value := range addresses {
-		fmt.Println(key,value)
+	for{
+		for key,value := range addresses {
+			fmt.Println(key,value)
+		}
 	}
 }
 
@@ -216,6 +217,9 @@ func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelO
 			case <- masterchange:
 				fmt.Println("Going slavemode")
 				return
+			default:
+				time.Sleep(1*time.Second)
+				PrintAddresses()
 		}
 	}
 }

@@ -3,7 +3,7 @@ package main
 import (
 
 	"fmt"
-	"./Driver"
+	//"./Driver"
 	"./Network"
 	"./ElevLib"
 	"time"
@@ -25,7 +25,7 @@ import (
 
 func main() {
 	
-	Network.init()
+	Network.Init()
 	fmt.Println("INTI!")
 	newInfoChan := make(chan ElevLib.MyInfo)
 	externalOrderChan := make(chan ElevLib.MyOrder) 
@@ -37,17 +37,9 @@ func main() {
 
 	time.Sleep(time.Second)
 
-	go Network.network(newInfoChan, externalOrderChan, newExternalOrderChan)
+	go Network.Network(newInfoChan, externalOrderChan, newExternalOrderChan)
 
 
-
-	for {
-		select{
-
-			case
-		}		
-		
-	}
 	//Driver.Elev_init()
 	//go ReeeadSensors()
 	//time.Sleep(100*time.Second)
@@ -69,5 +61,6 @@ func main() {
 			}
 	}
 	*/
+	time.Sleep(100*time.Second)
 	fmt.Println("Main: Terminating")
 }
