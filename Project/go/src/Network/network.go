@@ -140,7 +140,7 @@ func ReadAliveMessageUDP(write chan int){
 		addresses[string(s)] = time.Now()
 		if s!= "" {
 			for key, value := range addresses{
-				if time.Now().Sub(value) > 100*time.Millisecond && key != localIP{
+				if time.Now().Sub(value) > 10*time.Second && key != localIP{
 					delete(addresses,key)
 				}
 			}
@@ -421,7 +421,10 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 				stopRecieving<-1
 				closing<-1
 				return
-				//LAGE CASE FOR IKKE BOOLVAR!!!
+			default:
+				fmt.Println("These are the adressess online: ")
+				PrintAddresses()
+				time.Sleep(time.Second)
 			}
 		}
 		
