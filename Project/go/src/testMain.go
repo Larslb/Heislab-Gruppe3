@@ -30,14 +30,24 @@ func main() {
 	newInfoChan := make(chan ElevLib.MyInfo)
 	externalOrderChan := make(chan ElevLib.MyOrder) 
 	newExternalOrderChan := make(chan ElevLib.MyOrder)
+	readAndWriteAdresses := make(chan int, 1)
+	masterChan := make(chan int,1)
+	slaveChan := make(chan int,1)
+
+
+
 
 
 	go Network.SendAliveMessageUDP()
-	go Network.ReadAliveMessageUDP()
+	go Network.ReadAliveMessageUDP(readAndWriteAdresses)
+	readAndWriteAdresses<-1
+	Network.PrintAddresses()
+	time.Sleep(time.Millisecond)
+	go Network.SolvMaster(readAndWriteAdresses, masterChan, slaveChan)
 
 	time.Sleep(time.Second)
 
-	Network.Network(newInfoChan, externalOrderChan, newExternalOrderChan)
+	go Network.Network3(newInfoChan, externalOrderChan, newExternalOrderChan, masterChan, slaveChan)
 
 
 	//Driver.Elev_init()
