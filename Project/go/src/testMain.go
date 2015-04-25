@@ -37,7 +37,7 @@ func main() {
 
 	time.Sleep(time.Second)
 
-	go Network.Network(newInfoChan, externalOrderChan, newExternalOrderChan)
+	Network.Network(newInfoChan, externalOrderChan, newExternalOrderChan)
 
 
 	//Driver.Elev_init()

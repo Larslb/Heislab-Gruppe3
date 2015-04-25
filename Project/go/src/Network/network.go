@@ -105,6 +105,7 @@ func SendAliveMessageUDP(){
 	for {
 		_,err := broadcastAliveSock.Write([]byte(localIP))
 		if err != nil{
+			fmt.Println("ERRORR!", "SendAliveMessageUDP closing")
 			return
 		}
 		time.Sleep(10*time.Millisecond)
@@ -144,10 +145,8 @@ func ReadAliveMessageUDP(){
 }
 
 func PrintAddresses() {
-	for{
-		for key,value := range addresses {
-			fmt.Println(key,value)
-		}
+	for key,value := range addresses {
+		fmt.Println(key,value)
 	}
 }
 
@@ -195,7 +194,10 @@ func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelO
 	fmt.Println("MASTER:", "Going on")
 	for {
 
-		select{
+
+		PrintAddresses()
+		time.Sleep(1*time.Second)
+		/*select{/*
 			case NewInfo := <-recvInfo:
 				//OPPDATERE INFOMAP MED INFOEN MOTTATT PÅ SOCKET
 				infomap[NewInfo.Ip] = NewInfo
@@ -219,8 +221,9 @@ func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelO
 				return
 			default:
 				time.Sleep(1*time.Second)
+				fmt.Println("MASTER")
 				PrintAddresses()
-		}
+		}*/
 	}
 }
 
