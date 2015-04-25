@@ -432,6 +432,7 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 				}
 
 			case InfoUpdate := <- sendInfo:
+				fmt.Println("Sending InfoUpdate to master")
 				sendObject.MessageType = "INFO"
 				sendObject.Order = ElevLib.MyOrder{}
 				sendObject.Info = InfoUpdate
