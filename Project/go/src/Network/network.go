@@ -310,27 +310,30 @@ func ReadALL(writing chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan Elev
 	for  {
 		select{
 		
-		case <-writing: 
-			fmt.Println("Reading from sockets!")
-			for _,connection := range socketmap{
-				if len(socketmap) == 0 {
+		case <-writing:
+			fmt.Println("Reading from sockets!", socketmap)
+			for Ip,connection := range socketmap{
+				if  Ip == localIP{
 					writing<-1
-				}else{
-					buffer := make([]byte,1024)
-					msglen ,_:= connection.Read(buffer)
-					var temp ElevLib.MyElev
-					json.Unmarshal(buffer[:msglen], &temp)
-					if temp.MessageType == "INFO" {
-						recvInfo <-temp.Info
-						writing<-1
-					}else if temp.MessageType == "ORDER" {
-						recvOrder <-temp.Order
-						writing<-1
-					}
-					writing<-1
-					}
+					fmt.Println("TCPAccept can write")
 					time.Sleep(10*time.Millisecond)
+					break;
+
+				}
+				buffer := make([]byte,1024)
+				msglen ,_:= connection.Read(buffer)
+				var temp ElevLib.MyElev
+				json.Unmarshal(buffer[:msglen], &temp)
+				if temp.MessageType == "INFO" {
+					recvInfo <-temp.Info
+					writing<-1
+				}else if temp.MessageType == "ORDER" {
+					recvOrder <-temp.Order
+					writing<-1
+				}
+				fmt.Println("TCPAccept can write")
 			}
+			time.Sleep(10*time.Millisecond)
 		case <- stopRead:
 			return
 		}
