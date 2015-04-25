@@ -32,12 +32,34 @@ type MyElev struct {
 }
 
 
-// NYTT
+
+type NextOrder struct { // Ny
+	Ip string
+	ButtonType int
+	Floor int
+	Direction int
+}
 
 
 
-type NewReqFSM struct {
-	OrderChan chan [2]int
-	UpdateOrderChan chan int
+type OrderHandler2FSMchannels struct { // NY
+	OrderChan chan NextOrder
+	UpdateOrderChan chan NextOrder
+	KillGoRoutine chan bool
+	Rdy4nextOrder chan bool
+	FloorReachedChan chan bool
+	DeleteOrder chan NextOrder
+	Currentfloorupdate chan int
+}
+
+type Queue2OrderHandlerchannels struct { // NY
+	IOrdersChan chan MyOrder
+	EOrdersChan chan MyOrder
+	IsAliveChan chan bool
+}
+
+type NewReqFSM struct { // GAMMEL
+	OrderChan chan NextOrder
+	UpdateOrderChan chan NextOrder
 	KillThread chan bool
 }
