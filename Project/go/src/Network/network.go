@@ -310,17 +310,19 @@ func orderhandler(order ElevLib.MyOrder)(ElevLib.MyOrder) {
 
 }
 
-func readfromsocket( conn *net.TCPConn,  recvInfo chan ElevLib.MyInfo, recvOrder chan ElevLib.MyOrder ) bool {
+func readfromsocket( conn *net.TCPConn,  recvInfo chan ElevLib.MyInfo, recvOrder chan ElevLib.MyOrder ) (string, bool) {
 	buffer := make([]byte,1024)
 	conn.SetReadDeadline(time.Now().Add(80*time.Millisecond))
 	
 	msglen ,err:= conn.Read(buffer)
 	if err != nil {
 		time.Sleep(10*time.Millisecond)
-		return false
+		return "",false
 	}
 	fmt.Println("READALL using socketmap")
-
+	conn.Close()
+	return string(buffer[:msglen]), true
+	/*
 	var temp ElevLib.MyElev
 	json.Unmarshal(buffer[:msglen], &temp)
 	if temp.MessageType == "INFO" {
@@ -333,7 +335,7 @@ func readfromsocket( conn *net.TCPConn,  recvInfo chan ElevLib.MyInfo, recvOrder
 		return true
 	}
 	return false
-	
+	*/
 }
 func ReadALL(writing chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan ElevLib.MyOrder, stopRead chan int) {
 	for  {
@@ -341,7 +343,8 @@ func ReadALL(writing chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan Elev
 		
 		case <-writing:
 			for _,connection := range socketmap{
-				readfromsocket(connection, recvInfo, recvOrder)
+				m,_ := readfromsocket(connection, recvInfo, recvOrder)
+				fmt.Println(m)
 			}
 			writing<-1
 			time.Sleep(10*time.Millisecond)
@@ -378,7 +381,7 @@ func ReadOrders(chan recvOrder queue.MyOrder){
 	}
 }
 */
-func writetoSocket(socket *net.TCPConn, object ElevLib.MyElev)(bool){
+func writetoSocket(socket *net.TCPConn, object ElevLib.MyElev, message string )(bool){
 	if object.MessageType == "INFO" {
 		buffer,_ := json.Marshal(object.Info)
 		_,err:= socket.Write(buffer)
@@ -398,13 +401,18 @@ func writetoSocket(socket *net.TCPConn, object ElevLib.MyElev)(bool){
 		}
 		return true
 	}else{
-		return false
+		_,err:= socket.Write([]byte(message))
+		if err != nil {
+			fmt.Println("error", err)
+			return false
+		}
+		return true
 	}
 }
 
 
 
-func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelorder chan ElevLib.MyOrder, masterchan chan int, closing chan int, stopRecieving chan int) {
+func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelorder chan ElevLib.MyOrder, masterchan chan int, closing chan int, stopRecieving chan int, sendStr chan string) {
 	var masterSocket *net.TCPConn 
 	var connected bool = false
 	for(connected==false){
@@ -430,9 +438,9 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 				sendObject.Order = NewPanelOrder
 				sendObject.Info = ElevLib.MyInfo{}
 
-				sentorder := writetoSocket(masterSocket, sendObject)
+				sentorder := writetoSocket(masterSocket, sendObject, "")
 				for !sentorder {
-					sentorder = writetoSocket(masterSocket, sendObject)
+					sentorder = writetoSocket(masterSocket, sendObject, "")
 				}
 
 			case InfoUpdate := <- sendInfo:
@@ -441,15 +449,26 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 				sendObject.Order = ElevLib.MyOrder{}
 				sendObject.Info = InfoUpdate
 
-				sentinfo := writetoSocket(masterSocket, sendObject)
+				sentinfo := writetoSocket(masterSocket, sendObject, "")
 				for !sentinfo {
-					sentinfo = writetoSocket(masterSocket, sendObject)
+					sentinfo = writetoSocket(masterSocket, sendObject, "")
 				}
 			case <-masterchan:
 				fmt.Println("Going from slave To Master!")
 				stopRecieving<-1
 				closing<-1
 				return
+			case sendstring:= <-sendStr:
+				sendObject = ElevLib.MyElev{
+				MessageType: "",
+				Order: ElevLib.MyOrder{},
+				Info: ElevLib.MyInfo{},
+				}
+				sentstring := writetoSocket(masterSocket, sendObject ,sendstring)
+				for !sentstring {
+					sentstring = writetoSocket(masterSocket, sendObject ,sendstring)
+				}
+
 			default:
 				fmt.Println("These are the adressess online: ")
 				PrintAddresses()
@@ -579,7 +598,7 @@ func Network2(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 }
 
 */
-func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.MyOrder, newExternalOrderChan chan ElevLib.MyOrder, masterChan chan int, slaveChan chan int, ) {
+func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.MyOrder, newExternalOrderChan chan ElevLib.MyOrder, masterChan chan int, slaveChan chan int) {
 	
 	writeToSocketMap := make(chan int,1)
 	recvInfo := make(chan ElevLib.MyInfo)
@@ -587,12 +606,13 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 	closing := make(chan int, 1)
 	stopTCP := make(chan int, 1)
 	stopRead := make(chan int, 1)
-	newInfo := ElevLib.MyInfo{
+	/*newInfo := ElevLib.MyInfo{
 		Ip: localIP,
 		Dir: 1,
 		CurrentFloor: 1,
 		InternalOrders: []int{1,2,3},
-	}
+	}*/
+	sendstring := make(chan string)
 
 	for {
 
@@ -613,9 +633,9 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 
 				slave = true
 				fmt.Println("IM SLAVE")
-				go Slave(newInfoChan, externalOrderChan, newExternalOrderChan, masterChan, closing, stopRead)
+				go Slave(newInfoChan, externalOrderChan, newExternalOrderChan, masterChan, closing, stopRead, sendstring)
 				time.Sleep(time.Second)
-				newInfoChan <- newInfo
+				sendstring<-"HELLO MOTHERFUCKER"
 				fmt.Println("info sent")
 				<- closing
 				slave = false
