@@ -168,15 +168,17 @@ func broadCastOrder(order ElevLib.MyOrder) {
 	broadcastOrderSock,_ := net.DialUDP("udp", nil, broadcastOrderaddr)
 	time.Sleep(10*time.Millisecond)
 	for i:=0;i<10;i++ {
+		fmt.Println("BROADCASTINGORDER!!!!")
 		buf,_ := json.Marshal(order)
 		_,err := broadcastOrderSock.Write(buf)
 		if err != nil{
 			panic(err)
 		}
+		time.Sleep(10*time.Millisecond)
 	}
 	broadcastOrderSock.Close()
 }
-/*
+
 
 func RecieveOrders(orderchannel chan ElevLib.MyOrder, stopRecieving chan int) {
 	buffer := make([]byte,1024) 
@@ -195,7 +197,7 @@ func RecieveOrders(orderchannel chan ElevLib.MyOrder, stopRecieving chan int) {
 		}
 	}
 }
-*/
+
 //////////////////////////TCP funksjoner/////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
@@ -228,9 +230,11 @@ func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelO
 
 				handledorder := orderhandler(Ownorder)
 				fmt.Println("NETWORK: ","new panel Order recieved: ")
+				/*
 				if handledorder.Ip == localIP {
 					extOrder <- handledorder
 				}
+				*/
 				broadCastOrder(handledorder)
 			case UpdateInfo := <- sendInfo:
 				infomap[localIP] = UpdateInfo
@@ -417,7 +421,7 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 	//slavechange := make(chan bool)
 
 	//go slaveToMasterMode(slavechange)
-	//go RecieveOrders(recievechannel, stopRecieving)
+	go RecieveOrders(recievechannel, stopRecieving)
 	for {
 
 		for {
@@ -596,6 +600,11 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 		CurrentFloor: 1,
 		InternalOrders: []int{1,2,3},
 	}
+	newOrder := ElevLib.MyOrder{
+		Ip: localIP,
+		ButtonType: ElevLib.BUTTON_CALL_UP,
+		Floor: 2,
+	}
 
 
 	for {
@@ -610,6 +619,7 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 				writeToSocketMap<-1
 				go ReadALL(writeToSocketMap, recvInfo, recvOrder, stopRead)
 				go Master(newInfoChan, externalOrderChan, newExternalOrderChan, slaveChan, closing, stopTCP, stopRead, recvInfo, recvOrder)
+				newExternalOrderChan<-newOrder
 				<- closing
 				master = false
 
