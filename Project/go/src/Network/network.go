@@ -159,7 +159,7 @@ func PrintAddresses() {
 }
 func printInfo() {
 	for _,value := range infomap {
-		fmt.Println(value.IP, value.Dir, value.CurrentFloor, value.InternalOrders)
+		fmt.Println(value.Ip, value.Dir, value.CurrentFloor, value.InternalOrders)
 	}
 }
 

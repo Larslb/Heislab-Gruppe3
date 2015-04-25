@@ -26,7 +26,7 @@ import (
 func main() {
 	
 	Network.Init()
-	localIP,_ := Network.GetLocalIP()
+	//localIP,_ := Network.GetLocalIP()
 	fmt.Println("INTI!")
 	newInfoChan := make(chan ElevLib.MyInfo)
 	externalOrderChan := make(chan ElevLib.MyOrder) 
