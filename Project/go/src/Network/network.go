@@ -65,6 +65,7 @@ func SolvMaster(read chan int, masterchan chan int , slavechan chan int) {
 	for {
 		<-read 
 		for key,_ := range addresses{
+			//sfmt.Print(key)
 			s1 := strings.SplitAfterN(key,".",-1)
 			s2 := strings.SplitAfterN(lowestIP,".",-1)
 			IP1,_ := strconv.Atoi(s1[3])
@@ -80,7 +81,7 @@ func SolvMaster(read chan int, masterchan chan int , slavechan chan int) {
 			slavechan <-1
 		}
 
-	//fmt.Println(lowestIP)
+	//fmt.Println("MASTERIP :",lowestIP)
 	read<-1
 	time.Sleep(10*time.Millisecond)	
 	}
@@ -140,7 +141,10 @@ func ReadAliveMessageUDP(write chan int){
 		addresses[string(s)] = time.Now()
 		if s!= "" {
 			for key, value := range addresses{
-				if time.Now().Sub(value) > 10*time.Second && key != localIP{
+				if time.Now().Sub(value) > time.Second && key != localIP{
+					if key == lowestIP {
+						lowestIP = localIP
+					}
 					delete(addresses,key)
 				}
 			}
