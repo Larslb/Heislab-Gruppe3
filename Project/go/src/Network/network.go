@@ -11,6 +11,7 @@ import(
 )
 
 
+
 // 1. Hva slags informasjon trenger vi å sende?
 // 2. En melding for bestilling og en melding for enkle string-meldinger? (eks: "Jeg er Master",
 //    "Mottatt"... etc)
@@ -280,9 +281,11 @@ func ReadALL(writing chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan Elev
 			if temp.MessageType == "INFO" {
 				recvInfo <-temp.Info
 				writing<-1
+				time.Sleep(time.Millisecond)
 			}else if temp.MessageType == "ORDER" {
 				recvOrder <-temp.Order
 				writing<-1
+				time.Sleep(time.Millisecond)
 			}else{
 				continue
 			}
@@ -424,6 +427,7 @@ func TCPAccept(writeToSocket chan int) {
 			return 
 		}
 		writeToSocket<-1
+		time.Sleep(time.Millisecond)
 	}
 }
 
@@ -466,7 +470,7 @@ func Network(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.MyO
 					boolvar = false
 					go Slave(newInfoChan, externalOrderChan, newExternalOrderChan)
 				}
-		master = SolvMaster()
+			master = SolvMaster()
 		}
 	}
 }

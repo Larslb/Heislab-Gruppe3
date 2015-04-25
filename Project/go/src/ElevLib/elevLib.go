@@ -32,12 +32,15 @@ type MyElev struct {
 }
 
 
-// NYTT
 
-
+type NextOrder struct { // Ny
+	ButtonType int
+	Floor int
+	Direction int
+}
 
 type NewReqFSM struct {
-	OrderChan chan [2]int
-	UpdateOrderChan chan int
+	OrderChan chan NextOrder
+	UpdateOrderChan chan NextOrder
 	KillThread chan bool
 }

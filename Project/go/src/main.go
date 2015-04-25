@@ -78,7 +78,7 @@ func main() {
 	receiptFromQueue     := make(chan int)
 	updCrntFlrAndDir := make(chan []int)
 	setLightsOn := make(chan []int)
-	deleteOrderChan := make(chan []int)
+	deleteOrderChan := make(chan ElevLib.MyOrder)
 
 	//FoR QUEUE AND DRIVER
 	InternalOrderChan := make(chan ElevLib.MyOrder)
@@ -116,15 +116,27 @@ func main() {
 				
 				receipt := <- receiptFromQueue  // We wait for Queue to tell us where the elevetor is going
 				direction = receipt
-				//fmt.Println("MAIN: Ready to trigger on new cases")
+				fmt.Println("MAIN: Direction : ", direction)
 				
 				
 				
 			case floor := <-orderHandledChan:
-				deleteOrderChan <- []int{floor, direction}
+				if direction == 1 {
+				deleteOrderChan <- ElevLib.MyOrder{  // SLETTE PÅ ALLE HEISENE
+						Ip: localIp,
+						ButtonType: ElevLib.BUTTON_CALL_UP,
+						Floor: floor,
+					}
+				} else if direction == -1 {
+					deleteOrderChan <- ElevLib.MyOrder{  // SLETTE PÅ ALLE HEISENE
+						Ip: localIp,
+						ButtonType: ElevLib.BUTTON_CALL_DOWN,
+						Floor: floor,
+					}
+				}
 
-				receipt := <- receiptFromQueue  // Trenger egentlig ikke å ta imot
-				fmt.Println("Order on floor ", receipt, " in direction ", direction, " was deleted")
+				//receipt := <- receiptFromQueue  // Trenger egentlig ikke å ta imot
+				//fmt.Println("Order on floor ", receipt, " in direction ", direction, " was deleted")
 
 				setlights <- false
 
