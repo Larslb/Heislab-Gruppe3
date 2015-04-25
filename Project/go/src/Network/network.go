@@ -306,33 +306,40 @@ func orderhandler(order ElevLib.MyOrder)(ElevLib.MyOrder) {
 
 }
 
+func readfromsocket( conn *net.TCPConn,  recvInfo chan ElevLib.MyInfo, recvOrder chan ElevLib.MyOrder ) bool {
+	buffer := make([]byte,1024)
+	conn.SetReadDeadline(time.Now().Add(80*time.Millisecond))
+	
+	msglen ,err:= conn.Read(buffer)
+	if err != nil {
+		time.Sleep(10*time.Millisecond)
+		return false
+	}
+	fmt.Println("READALL using socketmap")
+
+	var temp ElevLib.MyElev
+	json.Unmarshal(buffer[:msglen], &temp)
+	if temp.MessageType == "INFO" {
+		fmt.Println("INFO recieved")
+		recvInfo <-temp.Info
+		return true
+	}else if temp.MessageType == "ORDER" {
+		fmt.Println("ORDER recieved")
+		recvOrder <-temp.Order
+		return true
+	}
+	return false
+	
+}
 func ReadALL(writing chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan ElevLib.MyOrder, stopRead chan int) {
 	for  {
 		select{
 		
 		case <-writing:
 			for _,connection := range socketmap{
-	
-				fmt.Println("READALL using socketmap")
-				buffer := make([]byte,1024)
-				connection.SetReadDeadline(time.Now().Add(80*time.Millisecond))
-				msglen ,err:= connection.Read(buffer)
-				if err != nil {
-					writing<-1 
-					time.Sleep(10*time.Millisecond)
-				}
-				var temp ElevLib.MyElev
-				json.Unmarshal(buffer[:msglen], &temp)
-				if temp.MessageType == "INFO" {
-					fmt.Println("INFO recieved")
-					recvInfo <-temp.Info
-					writing<-1
-				}else if temp.MessageType == "ORDER" {
-					fmt.Println("ORDER recieved")
-					recvOrder <-temp.Order
-					writing<-1
-				}
+				readfromsocket(connection, recvInfo, recvOrder)
 			}
+			writing<-1
 			time.Sleep(10*time.Millisecond)
 		case <- stopRead:
 			return
