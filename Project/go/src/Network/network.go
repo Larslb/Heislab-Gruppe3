@@ -310,6 +310,7 @@ func ReadALL(writing chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan Elev
 		select{
 		
 		case <-writing: 
+			fmt.Println("Reading from sockets!")
 			for _,connection := range socketmap{
 				buffer := make([]byte,1024)
 				msglen ,_:= connection.Read(buffer)
@@ -321,10 +322,9 @@ func ReadALL(writing chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan Elev
 				}else if temp.MessageType == "ORDER" {
 					recvOrder <-temp.Order
 					writing<-1
-				}else{
-					continue
 				}
 			}
+			writing<-1
 		case <- stopRead:
 			return
 		}
@@ -459,14 +459,14 @@ func TCPAccept(writeToSocket chan int, stopTCP chan int) {
 		select {
 
 			case <-writeToSocket:
+				fmt.Println("Writing to sockets!")
 				listener.SetDeadline(time.Now().Add(time.Millisecond*100))
 				remoteConn, error := listener.AcceptTCP()
 				if (error == nil){
 					socketmap[strings.Split(remoteConn.RemoteAddr().String(), ":")[0]] = remoteConn
 				}
-				time.Sleep(time.Millisecond)
 				writeToSocket<-1
-
+				time.Sleep(10*time.Millisecond)
 			case <-stopTCP:
 				return
 		}
@@ -571,6 +571,7 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 		CurrentFloor: 1,
 		InternalOrders: []int{1,2,3},
 	}
+	writeToSocketMap<-1
 
 	for {
 
@@ -579,8 +580,10 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 
 				master = true
 				fmt.Println("IM A MASTER")
-				go ReadALL(writeToSocketMap, recvInfo, recvOrder, stopRead)
 				go TCPAccept(writeToSocketMap, stopTCP)
+				time.Sleep(time.Second)
+				writeToSocketMap<-1
+				go ReadALL(writeToSocketMap, recvInfo, recvOrder, stopRead)
 				go Master(newInfoChan, externalOrderChan, newExternalOrderChan, slaveChan, closing, stopTCP, stopRead, recvInfo, recvOrder)
 				<- closing
 				master = false
