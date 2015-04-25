@@ -73,7 +73,7 @@ func SolvMaster() bool{
 			lowestIP = key
 		}
 	}
-	
+	fmt.Println(lowestIP)
 	if lowestIP == localIP{
 		return true
 	}else{
@@ -130,8 +130,7 @@ func ReadAliveMessageUDP(){
 	for {
 		conn.ReadFromUDP(buffer)
 		s := string(buffer[0:15]) //slipper nil i inlesningen
-		fmt.print(s)
-		time.Sleep(10*time.Millisecond)
+		fmt.Print(s)
 		addresses[string(s)] = time.Now()
 		if s!= "" {
 			for key, value := range addresses{
@@ -147,8 +146,8 @@ func ReadAliveMessageUDP(){
 }
 
 func PrintAddresses() {
-	for key,value := range addresses {
-		fmt.Println(key,value)
+	for key,_ := range addresses {
+		fmt.Println(key)
 	}
 }
 
@@ -197,7 +196,8 @@ func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelO
 	for {
 
 
-		PrintAddresses()
+		//PrintAddresses()
+		fmt.Println("")
 		time.Sleep(1*time.Second)
 		/*select{/*
 			case NewInfo := <-recvInfo:
@@ -469,35 +469,39 @@ func ConnectToIP(IP string)(*net.TCPConn, bool){
 
 func Network(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.MyOrder, newExternalOrderChan chan ElevLib.MyOrder) {
 	writeToSocketmap := make(chan int,1)
-	recvInfo := make(chan ElevLib.MyInfo)
-	recvOrder := make(chan ElevLib.MyOrder)
+	//recvInfo := make(chan ElevLib.MyInfo)
+	//recvOrder := make(chan ElevLib.MyOrder)
 
 
 
 	writeToSocketmap <- 1
 	master := SolvMaster()
-		if (!master) {
-			boolvar = true		
-		}
-		for {
-			if (master) {
-				if (!boolvar) {
-					fmt.Println("Im Master")
-					boolvar = true
-					go TCPAccept(writeToSocketmap)
-					time.Sleep(time.Millisecond)
-					go ReadALL(writeToSocketmap, recvInfo, recvOrder)
-					go Master(newInfoChan, externalOrderChan, newExternalOrderChan, recvInfo, recvOrder)
-				}
-			master = SolvMaster()
-			}else{
-				if (boolvar) {
-					fmt.Println("Im a Slave biatch")
-					boolvar = false
-					go Slave(newInfoChan, externalOrderChan, newExternalOrderChan)
-				}
-			master = SolvMaster()
+	if (!master) {
+		boolvar = true		
+	}
+	for {
+		fmt.Println("else")
+
+		if (master) {
+			if (!boolvar) {
+				fmt.Println("Im Master")
+				boolvar = true
+				//go TCPAccept(writeToSocketmap)
+				time.Sleep(time.Millisecond)
+				//go ReadALL(writeToSocketmap, recvInfo, recvOrder)
+				go Master(newInfoChan, externalOrderChan, newExternalOrderChan, recvInfo, recvOrder)
+			}
+		master = SolvMaster()
+		}else{
+			fmt.Println("else")
+			if (boolvar) {
+				fmt.Println("Im a Slave biatch")
+				boolvar = false
+				go Slave(newInfoChan, externalOrderChan, newExternalOrderChan)
+			}
+		master = SolvMaster()
 		}
 		time.Sleep(10*time.Millisecond)
 	}
+	fmt.Println("IIm dead")
 }
