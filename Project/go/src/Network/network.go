@@ -245,7 +245,11 @@ func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelO
 				time.Sleep(5*time.Second)
 				fmt.Println("MASTER")
 				PrintAddresses()
-				printInfo()
+				for _,value := range infomap {
+					fmt.Println("PRINTING INFOMAP")
+					fmt.Println(value.Ip, value.Dir, value.CurrentFloor, value.InternalOrders)
+				}
+				
 
 		}
 	}
