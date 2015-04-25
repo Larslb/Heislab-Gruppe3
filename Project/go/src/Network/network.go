@@ -130,6 +130,8 @@ func ReadAliveMessageUDP(){
 	for {
 		conn.ReadFromUDP(buffer)
 		s := string(buffer[0:15]) //slipper nil i inlesningen
+		fmt.print(s)
+		time.Sleep(10*time.Millisecond)
 		addresses[string(s)] = time.Now()
 		if s!= "" {
 			for key, value := range addresses{
