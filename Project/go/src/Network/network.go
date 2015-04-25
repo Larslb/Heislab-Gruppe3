@@ -459,11 +459,12 @@ func TCPAccept(writeToSocket chan int, stopTCP chan int) {
 		select {
 
 			case <-writeToSocket:
-				fmt.Println("Writing to sockets!")
+				//fmt.Println("Writing to sockets!")
 				listener.SetDeadline(time.Now().Add(time.Millisecond*100))
 				remoteConn, error := listener.AcceptTCP()
 				if (error == nil){
 					socketmap[strings.Split(remoteConn.RemoteAddr().String(), ":")[0]] = remoteConn
+					fmt.Println("added in socketmap: ", strings.Split(remoteConn.RemoteAddr().String(), ":")[0])
 				}
 				writeToSocket<-1
 				time.Sleep(10*time.Millisecond)
