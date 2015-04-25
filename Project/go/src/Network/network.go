@@ -246,6 +246,7 @@ func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelO
 				fmt.Println("MASTER")
 				PrintAddresses()
 				printInfo()
+
 		}
 	}
 }
@@ -312,19 +313,24 @@ func ReadALL(writing chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan Elev
 		case <-writing: 
 			fmt.Println("Reading from sockets!")
 			for _,connection := range socketmap{
-				buffer := make([]byte,1024)
-				msglen ,_:= connection.Read(buffer)
-				var temp ElevLib.MyElev
-				json.Unmarshal(buffer[:msglen], &temp)
-				if temp.MessageType == "INFO" {
-					recvInfo <-temp.Info
+				if len(socketmap) == 0 {
 					writing<-1
-				}else if temp.MessageType == "ORDER" {
-					recvOrder <-temp.Order
+				}else{
+					buffer := make([]byte,1024)
+					msglen ,_:= connection.Read(buffer)
+					var temp ElevLib.MyElev
+					json.Unmarshal(buffer[:msglen], &temp)
+					if temp.MessageType == "INFO" {
+						recvInfo <-temp.Info
+						writing<-1
+					}else if temp.MessageType == "ORDER" {
+						recvOrder <-temp.Order
+						writing<-1
+					}
 					writing<-1
-				}
+					}
+					time.Sleep(10*time.Millisecond)
 			}
-			writing<-1
 		case <- stopRead:
 			return
 		}
@@ -467,7 +473,7 @@ func TCPAccept(writeToSocket chan int, stopTCP chan int) {
 					fmt.Println("added in socketmap: ", strings.Split(remoteConn.RemoteAddr().String(), ":")[0])
 				}
 				writeToSocket<-1
-				time.Sleep(80*time.Millisecond)
+				time.Sleep(time.Millisecond)
 			case <-stopTCP:
 				return
 		}
@@ -572,7 +578,6 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 		CurrentFloor: 1,
 		InternalOrders: []int{1,2,3},
 	}
-	writeToSocketMap<-1
 
 	for {
 
