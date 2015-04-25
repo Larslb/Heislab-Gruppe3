@@ -26,6 +26,7 @@ import (
 func main() {
 	
 	Network.Init()
+	localIP,_ := Network.GetLocalIP()
 	fmt.Println("INTI!")
 	newInfoChan := make(chan ElevLib.MyInfo)
 	externalOrderChan := make(chan ElevLib.MyOrder) 
@@ -36,8 +37,14 @@ func main() {
 
 
 
-
-
+	/*
+	newInfo := ElevLib.MyInfo{
+		Ip: localIP,
+		Dir: 1,
+		CurrentFloor: 1,
+		InternalOrders: []int{1,2,3},
+	}
+	*/
 	go Network.SendAliveMessageUDP()
 	go Network.ReadAliveMessageUDP(readAndWriteAdresses)
 	readAndWriteAdresses<-1
@@ -49,11 +56,12 @@ func main() {
 
 	go Network.Network3(newInfoChan, externalOrderChan, newExternalOrderChan, masterChan, slaveChan)
 
+	time.Sleep(time.Second)
 
 	//Driver.Elev_init()
 	//go ReeeadSensors()
 	//time.Sleep(100*time.Second)
-
+	//newInfoChan<-newInfo
 	
 	/*
 	rcv := make(chan int)

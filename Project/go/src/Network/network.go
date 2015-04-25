@@ -157,6 +157,11 @@ func PrintAddresses() {
 		fmt.Println(key)
 	}
 }
+func printInfo() {
+	for _,value := range infomap {
+		fmt.Println(value.IP, value.Dir, value.CurrentFloor, value.InternalOrders)
+	}
+}
 
 func broadCastOrder(order ElevLib.MyOrder) {
 	broadcastOrderaddr,_ := net.ResolveUDPAddr("udp", localHost + BRORDER)
@@ -238,7 +243,8 @@ func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelO
 			default:
 				time.Sleep(5*time.Second)
 				fmt.Println("MASTER")
-				//PrintAddresses()
+				PrintAddresses()
+				printInfo()
 		}
 	}
 }
