@@ -171,6 +171,7 @@ func broadCastOrder(order ElevLib.MyOrder) {
 	}
 	broadcastOrderSock.Close()
 }
+/*
 
 func RecieveOrders(orderchannel chan ElevLib.MyOrder, stopRecieving chan int) {
 	buffer := make([]byte,1024) 
@@ -189,7 +190,7 @@ func RecieveOrders(orderchannel chan ElevLib.MyOrder, stopRecieving chan int) {
 		}
 	}
 }
-
+*/
 //////////////////////////TCP funksjoner/////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
@@ -387,7 +388,7 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 	//slavechange := make(chan bool)
 
 	//go slaveToMasterMode(slavechange)
-	go RecieveOrders(recievechannel, stopRecieving)
+	//go RecieveOrders(recievechannel, stopRecieving)
 	for {
 
 		for {
