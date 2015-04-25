@@ -39,9 +39,8 @@ var boolvar bool = false
 
 
 
-func Init(localIpChan chan string){
+func Init(){
 	localIP,localconn = GetLocalIP()
-	localIpChan <- localIP
 	addresses[localIP] = time.Now()
 	socketmap[localIP] = localconn
 }
@@ -131,6 +130,7 @@ func ReadAliveMessageUDP(){
 		conn.ReadFromUDP(buffer)
 		s := string(buffer[0:15]) //slipper nil i inlesningen
 		addresses[string(s)] = time.Now()
+		PrintAddresses()
 		if s!= "" {
 			for key, value := range addresses{
 				if time.Now().Sub(value) > 100*time.Millisecond && key != localIP{
@@ -180,17 +180,18 @@ func RecieveOrders(orderchannel chan ElevLib.MyOrder) {
 //////////////////////////TCP funksjoner/////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-func Master(writeToSocketMap chan int, sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelOrder chan ElevLib.MyOrder) {
+func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelOrder chan ElevLib.MyOrder, recvInfo chan ElevLib.MyInfo, recvOrder chan ElevLib.MyOrder) {
 
 	//var orders := []queue.MyOrder{}
-	recvInfo := make(chan ElevLib.MyInfo)
-	recvOrder := make(chan ElevLib.MyOrder)
+	//recvInfo := make(chan ElevLib.MyInfo)
+	//recvOrder := make(chan ElevLib.MyOrder)
 	
 	masterchange := make(chan bool)
 
 	time.Sleep(10*time.Millisecond)
 	go masterToSlaveMode(masterchange)
-	go ReadALL(writeToSocketMap, recvInfo, recvOrder)
+	//go ReadALL(writeToSocketMap, recvInfo, recvOrder)
+	fmt.Println("MASTER:", "Going on")
 	for {
 
 		select{
@@ -205,7 +206,7 @@ func Master(writeToSocketMap chan int, sendInfo chan ElevLib.MyInfo, extOrder ch
 			case Ownorder := <- PanelOrder:
 
 				handledorder := orderhandler(Ownorder)
-
+				fmt.Println("NETWORK: ","new panel Order recieved: ")
 				if handledorder.Ip == localIP {
 					extOrder <- handledorder
 				}
@@ -225,9 +226,8 @@ func Master(writeToSocketMap chan int, sendInfo chan ElevLib.MyInfo, extOrder ch
 func orderhandler(order ElevLib.MyOrder)(ElevLib.MyOrder) {
 
 	//var besteheis ElevLib.MyInfo
-
-	order.Ip = localIP
-	return order
+	//order.Ip = localIP
+	//return order
 	/*
 	for key,value := range infomap {
 		if value.CurrentFloor == order.Floor {
@@ -245,10 +245,14 @@ func orderhandler(order ElevLib.MyOrder)(ElevLib.MyOrder) {
 			}
 		}
 
+	}*/
+	for _,value := range infomap{
+		order.Ip = value.Ip
+		return order
 	}
-	//for key,value := range infomap{
-	//	besteheis = key
-	//	return besteheis
+	order.Ip = localIP
+	return order
+	/*
 		
 		else if value.internalOrders == nil {
 			
@@ -268,11 +272,14 @@ func orderhandler(order ElevLib.MyOrder)(ElevLib.MyOrder) {
 				
 			}
 		}*/
+
 }
 
 func ReadALL(writing chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan ElevLib.MyOrder) {
 	for  {
+		fmt.Println("READALL:", "Cannot read from socketmap" )
 		<-writing
+		fmt.Println("READALL:", "REading from socketmap" )
 		for _,connection := range socketmap{
 			buffer := make([]byte,1024)
 			msglen ,_:= connection.Read(buffer)
@@ -289,6 +296,7 @@ func ReadALL(writing chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan Elev
 			}else{
 				continue
 			}
+			time.Sleep(time.Millisecond)
 		}
 	}
 }
@@ -418,6 +426,7 @@ func TCPAccept(writeToSocket chan int) {
 	}
 	for{
 		<-writeToSocket
+		fmt.Println("TCPAccept: ", "writing to socketmap")
 		listener.SetDeadline(time.Now().Add(time.Millisecond*100))
 		remoteConn, error := listener.AcceptTCP()
 		if (error == nil){
@@ -451,6 +460,12 @@ func ConnectToIP(IP string)(*net.TCPConn, bool){
 
 func Network(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.MyOrder, newExternalOrderChan chan ElevLib.MyOrder) {
 	writeToSocketmap := make(chan int,1)
+	recvInfo := make(chan ElevLib.MyInfo)
+	recvOrder := make(chan ElevLib.MyOrder)
+
+
+
+	writeToSocketmap <- 1
 	master := SolvMaster()
 		if (!master) {
 			boolvar = true		
@@ -461,7 +476,9 @@ func Network(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.MyO
 					fmt.Println("Im Master")
 					boolvar = true
 					go TCPAccept(writeToSocketmap)
-					go Master(writeToSocketmap, newInfoChan, externalOrderChan, newExternalOrderChan)
+					time.Sleep(time.Millisecond)
+					go ReadALL(writeToSocketmap, recvInfo, recvOrder)
+					go Master(newInfoChan, externalOrderChan, newExternalOrderChan, recvInfo, recvOrder)
 				}
 			master = SolvMaster()
 			}else{
@@ -472,5 +489,6 @@ func Network(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.MyO
 				}
 			master = SolvMaster()
 		}
+		time.Sleep(10*time.Millisecond)
 	}
 }

@@ -61,13 +61,15 @@ func main() {
 	//newExternalOrderChan := make(chan ElevLib.MyOrder)
 	
 	Driver.Io_init()
+	Network.Init()
+
 	
 	// NEW CHANNELS
 	sensorchan := make(chan int)
 	// COMMUNICATION BETWEEN EM AND FSM
 	rcvNewReqFromFSMChan := make(chan ElevLib.NewReqFSM)
 	//checkDriverStatus    := make(chan int) // Only used when there have been no orders for a while
-	orderHandledChan	 := make(chan int)
+	orderHandledChan	 := make(chan ElevLib.NextOrder)
 	setlights 			 := make(chan bool)
 	setLightsOff := make(chan []int)
 	currentfloorupdateFSM	:= make(chan int)
@@ -76,9 +78,16 @@ func main() {
 	// COMMUNICATION BETWEEN EM AND QUEUE
 	sendReq2Queue 	     := make(chan ElevLib.NewReqFSM)
 	receiptFromQueue     := make(chan int)
-	updCrntFlrAndDir := make(chan []int)
+	updateCurrentFloor := make(chan int)
 	setLightsOn := make(chan []int)
-	deleteOrderChan := make(chan ElevLib.MyOrder)
+	deleteOrderChan := make(chan ElevLib.NextOrder)
+
+
+	//COMMUNICATION BETWEEN Queue AND NETWORK
+	//newExternalOrderChan := make(chan ElevLib.MyOrder)
+	//newInfoChan := make(chan ElevLib.MyInfo)
+	//externalOrderChan := make(chan ElevLib.MyOrder)
+
 
 	//FoR QUEUE AND DRIVER
 	InternalOrderChan := make(chan ElevLib.MyOrder)
@@ -92,9 +101,11 @@ func main() {
 	
 	// STARTUP PHASE, GO-ROUTINES
 	//go Driver.ReadSensors(sensorchan)
+	//go Network.SendAliveMessageUDP()
+	//go Network.ReadAliveMessageUDP()
 	go Driver.ReadElevPanel(InternalOrderChan)
 	go Driver.ReadFloorPanel(ExternalOrderChan)
-	go Queue.Queue_manager(sendReq2Queue, receiptFromQueue, localIp, setLightsOn, updCrntFlrAndDir, InternalOrderChan, ExternalOrderChan, deleteOrderChan)
+	go Queue.Queue_manager(sendReq2Queue, receiptFromQueue, localIp, setLightsOn, updateCurrentFloor, InternalOrderChan, ExternalOrderChan, deleteOrderChan)
 
 	
 	//fmt.Println("Elev_init Done: current_floor = ", current_floor, " and direction = ", direction)
@@ -105,6 +116,8 @@ func main() {
 	go Driver.SetLights(setLightsOn, setLightsOff)
 	time.Sleep(10*time.Millisecond)
 
+	//go Network.Network(newInfoChan, externalOrderChan ,newExternalOrderChan)
+	fmt.Println("MAIN:", "GOING IN FOOR LOOP")
 	// EVENT MANAGER
 	for{
 		select{
@@ -121,33 +134,21 @@ func main() {
 				
 				
 			case floor := <-orderHandledChan:
-				if direction == 1 {
-				deleteOrderChan <- ElevLib.MyOrder{  // SLETTE PÅ ALLE HEISENE
-						Ip: localIp,
-						ButtonType: ElevLib.BUTTON_CALL_UP,
-						Floor: floor,
-					}
-				} else if direction == -1 {
-					deleteOrderChan <- ElevLib.MyOrder{  // SLETTE PÅ ALLE HEISENE
-						Ip: localIp,
-						ButtonType: ElevLib.BUTTON_CALL_DOWN,
-						Floor: floor,
-					}
-				}
+				deleteOrderChan <- floor
 
 				//receipt := <- receiptFromQueue  // Trenger egentlig ikke å ta imot
 				//fmt.Println("Order on floor ", receipt, " in direction ", direction, " was deleted")
 
 				setlights <- false
 
-
-			//case newExtOrd := <-newExternalOrderChan: // FORELØPIG BARE FOR Å TESTE 1 HEIS
-			//	newExtOrd.Ip = localIp
-			//	ExternalOrderChan <- newExtOrd
-
+			/*
+			case newExtOrd := <-newExternalOrderChan: // FORELØPIG BARE FOR Å TESTE 1 HEIS
+				newExtOrd.Ip = localIp
+				ExternalOrderChan <- newExtOrd
+			*/
 			case current_floor = <-sensorchan:
 				fmt.Println("CurrentFloor is: ", current_floor)
-				updCrntFlrAndDir <- []int{current_floor,direction}
+				updateCurrentFloor <- current_floor
 				select{
 					case currentfloorupdateFSM <- current_floor:
 					case <-time.After(1*time.Second):

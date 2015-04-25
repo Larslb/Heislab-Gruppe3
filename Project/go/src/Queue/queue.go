@@ -11,8 +11,8 @@ var localIp string
 
 
 	
-var InternalOrderChan chan ElevLib.MyOrder
-var ExternalOrderChan chan ElevLib.MyOrder
+//var InternalOrderChan chan ElevLib.MyOrder
+//var ExternalOrderChan chan ElevLib.MyOrder
 var SetLightsChan chan []int
 var DeleteOrderChan chan []int
 var setLightsChan chan []int
@@ -82,7 +82,7 @@ func recievingthread(ready2recieve chan bool, ready chan bool) {
 }
 
 func topDownSearch(eOrders [2][ElevLib.N_FLOORS]string, currentFloor int)(int,int) {
-
+	fmt.Println("TopDownSearch is used!")
 	var tmpFloor int
 	var tmpDir int
 	var boolVar bool = false
@@ -112,7 +112,7 @@ func topDownSearch(eOrders [2][ElevLib.N_FLOORS]string, currentFloor int)(int,in
 }
 
 func bottomUpSearch(eOrders [2][ElevLib.N_FLOORS]string, currentFloor int)(int,int) {
-
+	fmt.Println("bottomUpSearch is used!")
 	var tmpFloor int
 	var tmpDir int
 	var boolVar bool = false
@@ -142,69 +142,79 @@ func bottomUpSearch(eOrders [2][ElevLib.N_FLOORS]string, currentFloor int)(int,i
 }
 
 func search(eOrders [2][ElevLib.N_FLOORS]string, currentFloor int) (ElevLib.NextOrder){
-	var nxtOrder ElevLib.NextOrder
+	fmt.Println("Search is used!")
+	nxtOrder := ElevLib.NextOrder{
+		ButtonType: ElevLib.BUTTON_COMMAND,
+		Floor: -1,
+		Direction: 0,
+	}
 
 	for floor := currentFloor ; floor < ElevLib.N_FLOORS ; floor++ {
-		for Button:= 0; Button<ElevLib.N_BUTTONS-2; Button ++{
+		for Button:= 0; Button<ElevLib.N_BUTTONS-1; Button ++{
 			if eOrders[Button][floor] == localIp{
 				if floor == currentFloor {
 
 					nxtOrder = ElevLib.NextOrder{
-						ButtonType: button,
+						ButtonType: Button,
 						Floor: floor,
 						Direction: 0,
 					}
+					return nxtOrder
 				}
 
 				nxtOrder = ElevLib.NextOrder{
-					ButtonType: button,
+					ButtonType: Button,
 					Floor: floor,
 					Direction: 1,
+				}
 				return nxtOrder
 
-				}
 			}
 		}
 	}
+	
 
 	for floor := currentFloor; floor > -1; floor-- {
-		for Button:= 0; Button<ElevLib.N_BUTTONS-2; Button ++{
-			if eOrders[button][floor] == localIp{
+		for Button:= 0; Button<ElevLib.N_BUTTONS-1; Button ++{
+			if eOrders[Button][floor] == localIp{
 				if floor == currentFloor {
 					nxtOrder = ElevLib.NextOrder{
-						ButtonType: button,
+						ButtonType: Button,
 						Floor: floor,
 						Direction: 0,
 					}
 					return nxtOrder
 				}
 				nxtOrder = ElevLib.NextOrder{
-					ButtonType: button,
+					ButtonType: Button,
 					Floor: floor,
 					Direction: -1,
+				}
 				return nxtOrder
 			}
 		}
 	}
-	nxtOrder = ElevLib.NextOrder{
-		ButtonType: BUTTON_COMMAND,
-		Floor: -1,
-		Direction: 0,
-	}
+
 	return nxtOrder
 }
+
 	
 
 
 func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor int, dir int) (ElevLib.NextOrder) {
 	
 	// MÅ OPPDATERE RETURVARIABEL TIL Å VÆRE NEXTFLOOR TYPE
-	var nxtOrder ElevLib.NextOrder{}
+	var nxtOrder ElevLib.NextOrder
 	var eTmpFloor int
 	var eTmpDir int
 
 	if currentFloor == -1{
-		return 0,-1
+		nxtOrder = ElevLib.NextOrder{
+				ButtonType: ElevLib.BUTTON_COMMAND,
+				Floor: -1,
+				Direction: 0,
+		}
+		return nxtOrder
 	}
 
 	if len(iOrder)==0 {
@@ -213,7 +223,7 @@ func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor i
 		if dir == 1 {
 			eTmpDir, eTmpFloor = topDownSearch(eOrders, currentFloor)
 			nxtOrder = ElevLib.NextOrder{
-				ButtonType: BUTTON_CALL_UP,
+				ButtonType: ElevLib.BUTTON_CALL_UP,
 				Floor: eTmpFloor,
 				Direction: eTmpDir,
 			}
@@ -222,7 +232,7 @@ func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor i
 		} else if dir == -1 {
 			eTmpDir, eTmpFloor = bottomUpSearch(eOrders, currentFloor)
 			nxtOrder = ElevLib.NextOrder{
-				ButtonType: BUTTON_CALL_DOWN,
+				ButtonType: ElevLib.BUTTON_CALL_DOWN,
 				Floor: eTmpFloor,
 				Direction: eTmpDir,
 			}
@@ -247,32 +257,37 @@ func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor i
 
 
 	if dir == 1{ 
-		tmpDir, tmpFloor = topDownSearch(eOrders, currentFloor)
-		if tmpDir == 1{
-			if tmpFloor < tmpNextOrder{
-				return tmpDir, tmpFloor
+		eTmpDir, eTmpFloor = topDownSearch(eOrders, currentFloor)
+		if eTmpDir == 1{
+			if eTmpFloor < nxtOrder.Floor{
+				nxtOrder.Floor = eTmpFloor
+				nxtOrder.Direction = eTmpDir
 			}
-		}else if tmpDir == 0{
-			return tmpDir, tmpFloor
+
+		}else if eTmpDir == 0{
+			nxtOrder.Floor = eTmpFloor
+			nxtOrder.Direction = eTmpDir
 		}
 	} else if dir == -1 {
-		tmpDir, tmpFloor = bottomUpSearch(eOrders, currentFloor)
-		if tmpDir == -1 {
-			if tmpFloor > tmpNextOrder {
-				return tmpDir, tmpFloor
+		eTmpDir, eTmpFloor = bottomUpSearch(eOrders, currentFloor)
+		if eTmpDir == -1 {
+			if eTmpFloor > nxtOrder.Floor {
+				nxtOrder.Floor = eTmpFloor
+				nxtOrder.Direction = eTmpDir
 			}
-		}else if tmpDir == 0 {
-			return tmpDir, tmpFloor
+		}else if eTmpDir == 0 {
+			nxtOrder.Floor = eTmpFloor
+			nxtOrder.Direction = eTmpDir
 		}
 	}
-	fmt.Println("TempnextOrder : ", tmpNextOrder, "tempDir", itempDir )
+	fmt.Println("TempnextOrder : ", nxtOrder.Floor, "tempDir", nxtOrder.Direction)
 
-	return itempDir, tmpNextOrder
+	return nxtOrder
 }
 
 // NEW SHIT
 
-func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int, localIpsent string, setLightsOn chan []int, updateCurrentFloor chan []int, InternalOrderChan chan ElevLib.MyOrder, ExternalOrderChan chan ElevLib.MyOrder, deleteOrderChan chan ElevLib.MyOrder) {
+func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int, localIpsent string, setLightsOn chan []int, updateCurrentFloor chan int, InternalOrderChan chan ElevLib.MyOrder, ExternalOrderChan chan ElevLib.MyOrder, deleteOrderChan chan ElevLib.NextOrder ) {
 	
 	currentFloor := -1
 	direction := 0
@@ -287,6 +302,8 @@ func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int
 	newExternalOrder2check := make(chan ElevLib.MyOrder)
 
 	//internalOrders, externalOrders := initializeOrders()
+	fmt.Println("QUEUE:", "Going on")
+
 	time.Sleep(10*time.Millisecond)
 	for{
 		select{
@@ -312,32 +329,46 @@ func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int
 
 				setLightsOn <- []int{ElevLib.BUTTON_COMMAND, order.Floor, 1}
 				fmt.Println(" ")
-				/*fmt.Print("QUEUE: ", "Sending new info on internal orders to MASTER")
-				sendInfoChan <- ElevLib.MyInfo{
+				fmt.Print("QUEUE: ", "Sending new info on internal orders to MASTER")
+				/*sendInfoChan <- ElevLib.MyInfo{
 					Ip: localIp,
-					Dir: dir,
-					CurrentFloor: current_floor,
+					Dir: direction,
+					CurrentFloor: currentFloor,
 					InternalOrders: internalOrders,
 					}
 
 				*/
-
+				
 			case order := <- ExternalOrderChan:
+
 				order.Ip = localIp
 				select{
 					case newExternalOrder2check <- order:
 					case <-time.After(10*time.Millisecond):
-						fmt.Println("newExternalOrder2check TIMEOUT")
+				//		fmt.Println("newExternalOrder2check TIMEOUT")
 				}
 
 				
-				fmt.Println("QUEUE: ","External order received on floor: ", order.Floor)
+				//fmt.Println("QUEUE: ","External order received on floor: ", order.Floor)
 				externalOrders = setExternalOrder(externalOrders, order)
 				setLightsOn <- []int{order.ButtonType, order.Floor, 1}
 				fmt.Println(" ")
 			
+			/*
+			case newExtorder := <- newExternalOrderChan:
+				select{
+					case newExternalOrder2check <- newExtorder:
+					case <-time.After(10*time.Millisecond):
+				//		fmt.Println("newExternalOrder2check TIMEOUT")
+				}
 
-
+				
+				fmt.Println("QUEUE: ","External order received on floor: ", newExtorder.Floor)
+				externalOrders = setExternalOrder(externalOrders, newExtorder)
+				setLightsOn <- []int{newExtorder.ButtonType, newExtorder.Floor, 1}
+				fmt.Println(" ")
+			
+			*/
 			case reqNewOrderFSM := <-rcvFromEMChan:
 				fmt.Println("Queue: currentFloor = ", currentFloor)
 
@@ -354,18 +385,18 @@ func Queue_manager(rcvFromEMChan chan ElevLib.NewReqFSM, sendReceipt2EM chan int
 				direction = nxtOrder.Direction
 
 
-				if nextFloor != -1 {
-					go checkForUpdOrders(reqNewOrderFSM.UpdateOrderChan,reqNewOrderFSM.KillThread, newInternalOrder2check, newExternalOrder2check, nxtOrder.Floor, nxtOrder.Direction, localIp)
+				if nxtOrder.Floor != -1 {
+					go checkForUpdOrders(reqNewOrderFSM.UpdateOrderChan,reqNewOrderFSM.KillThread, newInternalOrder2check, newExternalOrder2check, nxtOrder, localIp)
 
 					
 					reqNewOrderFSM.OrderChan <- nxtOrder
-					sendReceipt2EM <- dir
+					sendReceipt2EM <- direction
 					
 
 				} else {
 					reqNewOrderFSM.OrderChan <- nxtOrder
 
-					sendReceipt2EM <- dir
+					sendReceipt2EM <- direction
 					
 				}
 				fmt.Println(" ")
@@ -395,12 +426,12 @@ func deleteOrders(internalOrders []int, externalOrders [2][ElevLib.N_FLOORS]stri
 
 	// MÅ OPPDATERES I FORHOLD TIL NEXTORDER VARIABELEN
 
-	if len(internalOrders) > 2 {
+	if len(internalOrders) > 1 {
 		internalOrders = internalOrders[1:]
 	} else {
 		internalOrders = []int{}
 	}
-	externalOrders[order.ButtonType][order.Floor] = ""
+	externalOrders[order.ButtonType][order.Floor] = "x"
 
 	return internalOrders, externalOrders
 }
@@ -419,10 +450,10 @@ func checkForUpdOrders(updateOrderChan chan ElevLib.NextOrder, killThread chan b
 
 
 			case order := <- iOrder:
-				if order.Floor < currentNextOrder.Floor  && currentNextOrder.Direction == 1 {
+				if order.Floor > currentNextOrder.Floor  && currentNextOrder.Direction == 1 {
 					currentNextOrder.Floor = order.Floor
 					updateOrderChan <- currentNextOrder
-				}else if order.Floor > currentNextOrder.Floor && currentNextOrder.Direction == -1 {
+				}else if order.Floor < currentNextOrder.Floor && currentNextOrder.Direction == -1 {
 					currentNextOrder.Floor = order.Floor
 					updateOrderChan <- currentNextOrder
 				}
@@ -430,11 +461,11 @@ func checkForUpdOrders(updateOrderChan chan ElevLib.NextOrder, killThread chan b
 			case order := <- eOrder:
 
 				if order.Ip == localIp{
-					if order.Floor < currentNextOrder.Floor && CurrentNextOrder.Direction == 1 && order.ButtonType == ElevLib.BUTTON_CALL_UP {
+					if order.Floor > currentNextOrder.Floor && currentNextOrder.Direction == 1 && order.ButtonType == ElevLib.BUTTON_CALL_UP {
 						currentNextOrder.Floor = order.Floor
 						currentNextOrder.ButtonType = order.ButtonType
 						updateOrderChan <- currentNextOrder
-					}else if order.Floor > currentNextOrder.Floor && currentNextOrder.Direction == -1 && order.ButtonType == ElevLib.BUTTON_CALL_DOWN{
+					}else if order.Floor < currentNextOrder.Floor && currentNextOrder.Direction == -1 && order.ButtonType == ElevLib.BUTTON_CALL_DOWN{
 						currentNextOrder.Floor = order.Floor
 						currentNextOrder.ButtonType = order.ButtonType
 						updateOrderChan <- currentNextOrder
