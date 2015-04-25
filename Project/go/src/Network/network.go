@@ -428,6 +428,7 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 
 			select{
 			case NewOrder := <- recievechannel:
+				fmt.Println(NewOrder.Ip, NewOrder.ButtonType, NewOrder.Floor)
 				if (NewOrder.Ip == localIP) {
 					extOrder <- NewOrder
 				}
