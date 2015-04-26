@@ -1,4 +1,4 @@
-package notify
+package Notify
 import(
 	"fmt"
 	"os"
@@ -9,27 +9,33 @@ import(
 )
 
 
-func cleanup() {
+func cleanup(backup ElevLib.MyInfo) {
     fmt.Println("cleanup!!")
     Driver.Elev_set_speed(0)
     fo, _ := os.Create("Backup.txt")
-    fo.Write(Queue.GetInternalOrders())
+    fo.Write(backup)
    	fo.Close()
 }
 
-
-
-func Notify() {
+func Notify(notify chan chan ElevLib.MyInfo) {
 	c := make(chan os.signal, 1)
 	done := make(chan bool, 1)
-	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+
+	getbackup := make(chan ElevLib.MyInfo)
+
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM )
 
 	go func () {
-		sig := <-c
-		cleanup()
+		sigs := <-c	
+		notify <- getbackup
+
+		backup := <- getbackup
+
+		cleanup(backup)
 		fmt.Println(sig)
 		done<-true
-	}
+	}()
+
 	<-done
-	fmt.Println(exiting)
+	fmt.Println("Interrupt: exiting")
 }
