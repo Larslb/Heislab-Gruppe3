@@ -138,7 +138,7 @@ func ReadAliveMessageUDP(write chan int){
 		<-write
 		conn.ReadFromUDP(buffer)
 		s := string(buffer[0:15]) //slipper nil i inlesningen
-		fmt.Print(s)
+		//fmt.Print(s)
 		addresses[string(s)] = time.Now()
 		if s!= "" {
 			for key, value := range addresses{
