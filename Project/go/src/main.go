@@ -38,6 +38,7 @@ func main() {
 	readAndWriteAdresses := make(chan int, 1)
 	masterChan := make(chan int)
 	slaveChan := make(chan int)
+	ordrDeleteFromMaster := make(chan ElevLib.MyOrder)
 
 	qM2FSM := make(chan ElevLib.QM2FSMchannels)
 	//oh2fsmChans       := make(chan ElevLib.OrderHandler2FSMchannels)
@@ -59,7 +60,7 @@ func main() {
 
 	time.Sleep(time.Second)
 
-	go Network.Network3(newInfoChan, externalOrderChan, newPanelOrderChan, masterChan, slaveChan)
+	go Network.Network3(newInfoChan, externalOrderChan, newPanelOrderChan, masterChan, slaveChan, ordrDeleteFromMaster)
 
 	time.Sleep(time.Second)
 	
@@ -73,7 +74,7 @@ func main() {
 		fmt.Println("MAIN: Could not initiate elevator!")
 	}*/
 
-	go Queue.Queue_Manager(qM2FSM, internalOrderChan, externalOrderChan, setLightsOn, localIp, newInfoChan)
+	go Queue.Queue_Manager(qM2FSM, internalOrderChan, externalOrderChan, setLightsOn, localIp, newInfoChan, ordrDeleteFromMaster)
 	go Driver.Fsm(qM2FSM, setLightsOff)
 
 	//fmt.Println("MAIN: Ready to synchronize Queue and Fsm")

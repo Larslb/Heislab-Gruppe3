@@ -101,7 +101,7 @@ func topDownSearch(eOrders [2][ElevLib.N_FLOORS]string, currentFloor int) ElevLi
 		}
 	}
 	if boolVar{
-		nxtOrder = ElevLib.NextOrder{
+		nxtOrder := ElevLib.NextOrder{
 			ButtonType: ElevLib.BUTTON_CALL_UP,
 			Floor: tmpFloor,
 			Direction: tmpDir,
@@ -109,7 +109,7 @@ func topDownSearch(eOrders [2][ElevLib.N_FLOORS]string, currentFloor int) ElevLi
 
 		return nxtOrder
 	} else {
-		nxtOrder = ElevLib.NextOrder{
+		nxtOrder := ElevLib.NextOrder{
 			ButtonType: ElevLib.BUTTON_CALL_UP,
 			Floor: -1,
 			Direction: 0,
@@ -290,7 +290,7 @@ func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor i
 		}
 	} else if dir == -1 {
 		fmt.Println("bottomUpSearch using: currentFloor = ", currentFloor, " direction = ", dir)
-		tmpNextOrder = bottomUpSearch(eOrders, currentFloor)
+		tmpNextOrder := bottomUpSearch(eOrders, currentFloor)
 		if tmpNextOrder.Direction == -1 && tmpNextOrder.Floor > nxtOrder.Floor {
 				nxtOrder.Floor = tmpNextOrder.Floor
 				nxtOrder.Direction = tmpNextOrder.Direction
@@ -302,23 +302,29 @@ func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor i
 
 func deleteOrders(internalOrders []int, externalOrders [2][ElevLib.N_FLOORS]string, order ElevLib.NextOrder) ([]int, [2][ElevLib.N_FLOORS]string){
 
-	if len(internalOrders) > 1 {
-		internalOrders = internalOrders[1:]
-	} else {
-		internalOrders = []int{}
-	}
-	
-	if order.ButtonType != ElevLib.BUTTON_COMMAND {
+	if order.ButtonType == ElevLib.BUTTON_COMMAND {
+		if len(internalOrders) > 1{
+			internalOrders = internalOrders[1:]
+		} else {
+			internalOrders = []int{}
+		}
+	}else{
+		if internalOrders[0] == order.Floor {
+			internalOrders = internalOrders[1:]
+		}
 		externalOrders[order.ButtonType][order.Floor] = "x"
 	}
-
 	return internalOrders, externalOrders
+}
+
+func deleteExternalOrders(internalOrders []int, externalOrders [2][ElevLib.N_FLOORS]string, order ElevLib.MyOrder ) {
+	
 }
 
 
 // NYTT
 
-func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromSensor chan ElevLib.MyOrder, externalOrdersFromMaster chan ElevLib.MyOrder, setLightsOn chan []int, localIpsent string, newInfo chan ElevLib.MyInfo){
+func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromSensor chan ElevLib.MyOrder, externalOrdersFromMaster chan ElevLib.MyOrder, setLightsOn chan []int, localIpsent string, newInfo chan ElevLib.MyInfo, orderdeletion chan ElevLib.MyOrder, orderDelFromMaster chan ElevLib.MyOrder){
 
 	localIp = localIpsent
 
@@ -346,7 +352,7 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 					}
 	
 	sendInfo := ElevLib.MyInfo {
-		MessageType: "INFO",
+		Ip: localIp,
 		Dir: orderdirection,
 		CurrentFloor: currentFloor,
 		InternalOrders: internalOrders,
@@ -451,15 +457,23 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 					fmt.Println("QUEUE: internalOrders = ", internalOrders, ", externalOrders = ", externalOrders)
 					fmt.Println(" ")
 					if delOrder.ButtonType != ElevLib.BUTTON_COMMAND {
+						order := ElevLib.MyOrder{
+							Ip: localIp,
+							ButtonType: delOrder.ButtonType,
+							Floor: delOrder.Floor,
+							Set: false,
+						}
 						orderdeletion <- delOrder
-					} else {
-						newInfo <- sendInfo
-					}
+					} 
+					newInfo <- sendInfo
 					fmt.Println(" ")
 					fmt.Println("-------------------------")
 					fmt.Println("SENDING INFO delOrder TRIGGER: " )
 					fmt.Println("-------------------------")
 					fmt.Println(" ")
+
+					
+
 				} else {
 					// ERROR
 				}
@@ -479,7 +493,15 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 					fmt.Println(" ")
 					orderdirection = 0
 				}
+			case orderdelete := <- orderDelFromMaster:
+				odel := ElevLib.NextOrder{
+					ButtonType: orderdelete.ButtonType,
+					Floor: orderdelete.Floor,
+					Direction: 
+				}
 
+
+				deleteOrders(internalOrders, externalOrders, orderdelete)
 			case currentFloor = <- currentFloorUpdateChan:
 				fmt.Println("QUEUE: currentFloor = ", currentFloor)
 				fmt.Println(" ")

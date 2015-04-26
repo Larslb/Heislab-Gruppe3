@@ -184,7 +184,7 @@ func broadCastOrder(order ElevLib.MyOrder) {
 	time.Sleep(10*time.Millisecond)
 	for i:=0;i<10;i++ {
 		fmt.Println("BROADCASTINGORDER!!!!")
-		buf,_ := json.Marshal(order)
+		buf,_ := json.Marshal([]byte(string("SetOrder")) + order)
 		_,err := broadcastOrderSock.Write(buf)
 		if err != nil{
 			panic(err)
@@ -216,7 +216,7 @@ func RecieveOrders(orderchannel chan ElevLib.MyOrder, stopRecieving chan int) {
 //////////////////////////TCP funksjoner/////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelOrder chan ElevLib.MyOrder, slaveChan chan int, closing chan int, stopTCP chan int, stopRead chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan ElevLib.MyOrder) {
+func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelOrder chan ElevLib.MyOrder, slaveChan chan int, closing chan int, stopTCP chan int, stopRead chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan ElevLib.MyOrder, orderdeletion chan ElevLib.MyOrder), orderDelFromMaster chan ElevLib.MyOrder {
 	//var orders := []queue.MyOrder{}
 	//recvInfo := make(chan ElevLib.MyInfo)
 	//recvOrder := make(chan ElevLib.MyOrder)
@@ -237,22 +237,30 @@ func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelO
 				infomap[NewInfo.Ip] = NewInfo
 				fmt.Println("NETWORK:   INFO RECIEVED!!")
 			case NewOrder := <-recvOrder:
-				handledorder := orderhandler(NewOrder)
-
-				extOrder <- handledorder
-				broadCastOrder(handledorder)
+				NewOrder.Ip = costfunction(NewOrder)
+				if NewOrder.Set {
+					extOrder <- NewOrder
+				}else{
+					orderDelFromMaster <- NewOrder
+				}
+				broadCastOrder(NewOrder)
 
 			case Ownorder := <- PanelOrder:
 
-				handledorder := orderhandler(Ownorder)
+				Ownorder.Ip = costfunction(Ownorder)
 				fmt.Println("NETWORK: ","new panel Order recieved: ")
 				
-				extOrder <- handledorder
+				extOrder <- Ownorder
 				
 				
-				broadCastOrder(handledorder)
+				broadCastOrder(Ownorder)
 			case UpdateInfo := <- sendInfo:
 				infomap[localIP] = UpdateInfo
+
+			case OrderDeleted := <- orderdeletion:
+
+				broadCastOrder(OrderDeleted)
+
 			case <- slaveChan:
 				fmt.Println("Going slavemode")
 				stopTCP<-1
@@ -342,7 +350,7 @@ func writetoSocket(socket *net.TCPConn, object ElevLib.MyElev )(bool){
 
 
 
-func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelorder chan ElevLib.MyOrder, masterchan chan int, closing chan int, stopRecieving chan int) {
+func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelorder chan ElevLib.MyOrder, masterchan chan int, closing chan int, stopRecieving chan int, orderdeletion chan ElevLib.MyOrder , orderDelFromMaster chan ElevLib.MyOrder) {
 	var masterSocket *net.TCPConn 
 	var connected bool = false
 	for(connected==false){
@@ -355,6 +363,7 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 	//go slaveToMasterMode(slavechange)
 	go RecieveOrders(recievechannel, stopRecieving)
 	fmt.Println("GOING IN FOR SELECT LOOP")
+	
 	for {
 
 		for {
@@ -363,9 +372,16 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 			case NewOrder := <- recievechannel:
 
 				fmt.Println(NewOrder.Ip, NewOrder.ButtonType, NewOrder.Floor)
-				extOrder <- NewOrder
+				if NewOrder.Set {
+					extOrder <- NewOrder
+				}else {
+					orderDelFromMaster <- NewOrder
+				}
+
 			case NewPanelOrder := <- Panelorder:
 
+
+				NewPanelOrder.Set = true
 				sendObject := ElevLib.MyElev {
 					MessageType: "ORDER",
 					Order: NewPanelOrder,
@@ -394,6 +410,19 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 					sentinfo = writetoSocket(masterSocket, sendObject)
 				}
 				fmt.Println("info sent")
+			case deleteOrder := <-orderdeletion:
+				sendObject := ElevLib.MyElev {
+					MessageType: "ORDER",
+					Order: NewPanelOrder,
+					Info: ElevLib.MyInfo{},
+				}
+
+				sentorder := writetoSocket(masterSocket, sendObject)
+				for !sentorder {
+					sentorder = writetoSocket(masterSocket, sendObject)
+				}
+
+
 			case <-masterchan:
 				fmt.Println("Going from slave To Master!")
 				stopRecieving<-1
@@ -455,7 +484,7 @@ func ConnectToIP(IP string)(*net.TCPConn, bool){
 ///////////////////////////////diverse funksjoner/////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 
-func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.MyOrder, newExternalOrderChan chan ElevLib.MyOrder, masterChan chan int, slaveChan chan int) {
+func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.MyOrder, newExternalOrderChan chan ElevLib.MyOrder, masterChan chan int, slaveChan chan int, ordrDeleteFromMaster chan ElevLib.MyOrder) {
 	
 	writeToSocketMap := make(chan int,1)
 	recvInfo := make(chan ElevLib.MyInfo)
@@ -477,7 +506,7 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 				time.Sleep(time.Millisecond)
 				writeToSocketMap<-1
 				go ReadALL(writeToSocketMap, recvInfo, recvOrder, stopRead)
-				go Master(newInfoChan, externalOrderChan, newExternalOrderChan, slaveChan, closingMaster, stopTCP, stopRead, recvInfo, recvOrder)
+				go Master(newInfoChan, externalOrderChan, newExternalOrderChan, slaveChan, closingMaster, stopTCP, stopRead, recvInfo, recvOrder, ordrDeleteFromMaster)
 				<- closingMaster
 				master = false
 
@@ -485,7 +514,7 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 
 				slave = true
 				fmt.Println("IM SLAVE")
-				go Slave(newInfoChan, externalOrderChan, newExternalOrderChan, masterChan, closingSlave, stopRead)
+				go Slave(newInfoChan, externalOrderChan, newExternalOrderChan, masterChan, closingSlave, stopRead, ordrDeleteFromMaster)
 				time.Sleep(time.Millisecond)
 				<- closingSlave
 				slave = false
@@ -504,11 +533,11 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 // DET SOM HØRER TIL COST FUNCTION STÅR UNDER HER   //
 //													//
 //////////////////////////////////////////////////////
-func costfunction( info map[string]ElevLib.MyInfo, order ElevLib.MyOrder) string {
+func costfunction( order ElevLib.MyOrder) string {
 	
-	elevsInDirection := inDirection(info, order)
+	elevsInDirection := inDirection(order)
 
-	nearestElev := shortestRoute(info, order, elevsInDirection)
+	nearestElev := shortestRoute(order, elevsInDirection)
 
 	return nearestElev	
 
@@ -520,11 +549,11 @@ func costfunction( info map[string]ElevLib.MyInfo, order ElevLib.MyOrder) string
 	return bestElevs[0]*/
 }
 
-func inDirection(info map[string]ElevLib.MyInfo, order ElevLib.MyOrder ) []string {
+func inDirection(order ElevLib.MyOrder ) []string {
 	elevs := []string{}
 	var orderDirectionRelativeElev int
 
-	for key, val := range info {
+	for key, val := range infomap {
 		if order.Floor < val.CurrentFloor {
 			orderDirectionRelativeElev = -1
 		} else if order.Floor > val.CurrentFloor {
@@ -542,15 +571,15 @@ func inDirection(info map[string]ElevLib.MyInfo, order ElevLib.MyOrder ) []strin
 
 }
 
-func shortestRoute(info map[string]ElevLib.MyInfo, order ElevLib.MyOrder, elevlist []string ) string {
+func shortestRoute(order ElevLib.MyOrder, elevlist []string ) string {
 
 	if length := len(elevlist); length > 2 {
 		m := length/2
-		list1 := shortestRoute(info, order, elevlist[0:m])
-		list2 := shortestRoute(info, order, elevlist[m:length])
+		list1 := shortestRoute(order, elevlist[0:m])
+		list2 := shortestRoute(order, elevlist[m:length])
 
-		dist1 := abs(info[list1].CurrentFloor-order.Floor)
-		dist2 :=  abs(info[list2].CurrentFloor-order.Floor)
+		dist1 := abs(infomap[list1].CurrentFloor-order.Floor)
+		dist2 :=  abs(infomap[list2].CurrentFloor-order.Floor)
 
 		if dist1 < dist2 {
 			return list1
@@ -561,8 +590,8 @@ func shortestRoute(info map[string]ElevLib.MyInfo, order ElevLib.MyOrder, elevli
 	} else if len(elevlist) == 1 {
 		return elevlist[0]
 	} else {
-		dist1 := abs(info[elevlist[0]].CurrentFloor-order.Floor)
-		dist2 :=  abs(info[elevlist[1]].CurrentFloor-order.Floor)
+		dist1 := abs(infomap[elevlist[0]].CurrentFloor-order.Floor)
+		dist2 :=  abs(infomap[elevlist[1]].CurrentFloor-order.Floor)
 
 		if dist1 < dist2 {
 			return elevlist[0]

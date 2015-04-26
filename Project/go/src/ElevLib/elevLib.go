@@ -22,6 +22,7 @@ type MyOrder struct {
 	Ip string
 	ButtonType int
 	Floor int
+	Set bool
 }
 
 type MyElev struct {
