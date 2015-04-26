@@ -138,7 +138,7 @@ func ReadAliveMessageUDP(write chan int){
 		<-write
 		conn.ReadFromUDP(buffer)
 		s := string(buffer[0:15]) //slipper nil i inlesningen
-		//fmt.Print(s)
+		fmt.Print(s)
 		addresses[string(s)] = time.Now()
 		if s!= "" {
 			for key, value := range addresses{
@@ -328,21 +328,18 @@ func readfromsocket( conn *net.TCPConn,  recvInfo chan ElevLib.MyInfo, recvOrder
 		time.Sleep(10*time.Millisecond)
 		return false
 	}
-	fmt.Println("READALL using socketmap")
+	//fmt.Println("READALL using socketmap")
 	var temp ElevLib.MyElev
 	json.Unmarshal(buffer[:msglen], &temp)
 	if temp.MessageType == "INFO" {
 		fmt.Println("INFO recieved")
 		recvInfo <-temp.Info
-		conn.Close()
 		return true
 	}else if temp.MessageType == "ORDER" {
 		fmt.Println("ORDER recieved")
 		recvOrder <-temp.Order
-		conn.Close()
 		return true
 	}
-	conn.Close()
 	return false
 	
 }
@@ -428,6 +425,7 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 
 	//go slaveToMasterMode(slavechange)
 	go RecieveOrders(recievechannel, stopRecieving)
+	fmt.Println("GOING IN FOR SELECT LOOP")
 	for {
 
 		for {
@@ -452,11 +450,14 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 				sendObject.MessageType = "INFO"
 				sendObject.Order = ElevLib.MyOrder{}
 				sendObject.Info = InfoUpdate
+				PrintAddresses()
 
 				sentinfo := writetoSocket(masterSocket, sendObject)
+
 				for !sentinfo {
 					sentinfo = writetoSocket(masterSocket, sendObject)
 				}
+				fmt.Println("info sent")
 			case <-masterchan:
 				fmt.Println("Going from slave To Master!")
 				stopRecieving<-1
@@ -607,7 +608,7 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 				master = true
 				fmt.Println("IM A MASTER")
 				go TCPAccept(writeToSocketMap, stopTCP)
-				time.Sleep(time.Second)
+				time.Sleep(time.Millisecond)
 				writeToSocketMap<-1
 				go ReadALL(writeToSocketMap, recvInfo, recvOrder, stopRead)
 				go Master(newInfoChan, externalOrderChan, newExternalOrderChan, slaveChan, closingMaster, stopTCP, stopRead, recvInfo, recvOrder)
@@ -619,7 +620,7 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 				slave = true
 				fmt.Println("IM SLAVE")
 				go Slave(newInfoChan, externalOrderChan, newExternalOrderChan, masterChan, closingSlave, stopRead)
-				time.Sleep(time.Second)
+				time.Sleep(time.Millisecond)
 				<- closingSlave
 				slave = false
 
