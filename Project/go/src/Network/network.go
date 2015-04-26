@@ -274,7 +274,7 @@ func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelO
 				broadCastOrder(Ownorder)
 			case UpdateInfo := <- sendInfo:
 				infomap[localIP] = UpdateInfo
-
+				printInfo()
 			case OrderDeleted := <- orderdeletion:
 
 				broadCastOrder(OrderDeleted)
@@ -310,7 +310,7 @@ func readfromsocket( conn *net.TCPConn,  recvInfo chan ElevLib.MyInfo, recvOrder
 
 	fmt.Println(" ")
 	fmt.Println("-------------------------")
-	fmt.Println("RECIEVED  TEMP: ", temp.MessageType, temp.Info, temp.Order)
+	fmt.Println("RECIEVED  TEMP: ", temp.MessageType, temp.Order, temp.Info)
 	fmt.Println("-------------------------")
 	fmt.Println(" ")
 	if temp.MessageType == "INFO" {
@@ -331,7 +331,9 @@ func ReadALL(writing chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan Elev
 		
 		case <-writing:
 			for _,connection := range socketmap{
-				readfromsocket(connection, recvInfo, recvOrder)
+				for readfromsocket(connection, recvInfo, recvOrder){
+
+				}
 			}
 			writing<-1
 			time.Sleep(10*time.Millisecond)
@@ -343,7 +345,8 @@ func ReadALL(writing chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan Elev
 
 func writetoSocket(socket *net.TCPConn, object ElevLib.MyElev )(bool){
 	if object.MessageType == "INFO" {
-		buffer,_ := json.Marshal(object.Info)
+		buffer,_ := json.Marshal(object)
+		fmt.Println("BUFFER: ",buffer)
 		_,err:= socket.Write(buffer)
 		if err != nil {
 			fmt.Println("error", err)

@@ -314,7 +314,7 @@ func deleteOrders(internalOrders []int, externalOrders [2][ElevLib.N_FLOORS]stri
 				internalOrders = internalOrders[1:]
 			}
 		}
-		externalOrders[order.ButtonType][order.Floor] = "x"
+		externalOrders[order.ButtonType][order.Floor] = ""
 	}
 	return internalOrders, externalOrders
 }
@@ -356,9 +356,9 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 		InternalOrders: internalOrders,
 	}
 
-
+	fmt.Println("QUEUE going on")
 	channels2fsm <- qm2fsmChannels
-
+	fmt.Println("QUEUE going on")
 	for {
 		select {
 			case iOrder := <- internalOrdersFromSensor:
@@ -492,7 +492,7 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 					orderdirection = 0
 				}
 			case orderdelete := <- orderDelFromMaster:
-				externalOrders[orderdelete.ButtonType][orderdelete.Floor] = " "
+				externalOrders[orderdelete.ButtonType][orderdelete.Floor] = ""
 
 			case currentFloor = <- currentFloorUpdateChan:
 				fmt.Println("QUEUE: currentFloor = ", currentFloor)
