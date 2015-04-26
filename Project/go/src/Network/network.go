@@ -77,6 +77,7 @@ func SolvMaster(read chan int, masterchan chan int , slavechan chan int) {
 				lowestIP = key
 			}
 		}
+
 		fmt.Println("LOWESTIP = ", lowestIP)
 		if lowestIP == localIP && !master {
 			masterchan<-1
@@ -145,9 +146,6 @@ func ReadAliveMessageUDP(write chan int){
 		if s!= "" {
 			for key, value := range addresses{
 				if time.Now().Sub(value) > time.Second && key != localIP{
-					if key == lowestIP {
-						lowestIP = localIP
-					}
 					delete(addresses,key)
 					deadadresses = append(deadadresses, key)
 
