@@ -34,6 +34,7 @@ var lowestIP string = "0"
 var infomap = make(map[string]ElevLib.MyInfo)
 var socketmap = make(map[string]*net.TCPConn)
 var addresses = make(map[string]time.Time)
+var deadadresses []string 
 var master bool = false
 var slave bool = false
 
@@ -146,6 +147,8 @@ func ReadAliveMessageUDP(write chan int){
 						lowestIP = localIP
 					}
 					delete(addresses,key)
+					deadadresses = append(deadadresses, key)
+
 				}
 			}
 			
@@ -161,6 +164,13 @@ func PrintAddresses() {
 		fmt.Println(key)
 	}
 }
+
+func PrintDeadAddresses() {
+	for key := 0; key <len(deadadresses); key++ {
+		fmt.Println(deadadresses[key])
+	}
+}
+
 func printInfo() {
 	for _,value := range infomap {
 		fmt.Println(value.Ip, value.Dir, value.CurrentFloor, value.InternalOrders)
@@ -228,17 +238,17 @@ func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelO
 			case NewOrder := <-recvOrder:
 				handledorder := orderhandler(NewOrder)
 
+				extOrder <- handledorder
 				broadCastOrder(handledorder)
 
 			case Ownorder := <- PanelOrder:
 
 				handledorder := orderhandler(Ownorder)
 				fmt.Println("NETWORK: ","new panel Order recieved: ")
-				/*
-				if handledorder.Ip == localIP {
-					extOrder <- handledorder
-				}
-				*/
+				
+				extOrder <- handledorder
+				
+				
 				broadCastOrder(handledorder)
 			case UpdateInfo := <- sendInfo:
 				infomap[localIP] = UpdateInfo
@@ -248,15 +258,6 @@ func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelO
 				stopRead<-1
 				closing<-1
 				return
-
-			default:
-				time.Sleep(5*time.Second)
-				fmt.Println("MASTER")
-				PrintAddresses()
-				for _,value := range infomap {
-					fmt.Println("PRINTING INFOMAP")
-					fmt.Println(value.Ip, value.Dir, value.CurrentFloor, value.InternalOrders)
-				}
 				
 
 		}
@@ -350,6 +351,7 @@ func ReadALL(writing chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan Elev
 		select{
 		
 		case <-writing:
+			fmt.Println("ReadALL using socketmap")
 			for _,connection := range socketmap{
 				readfromsocket(connection, recvInfo, recvOrder)
 			}
@@ -432,10 +434,9 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 
 			select{
 			case NewOrder := <- recievechannel:
+
 				fmt.Println(NewOrder.Ip, NewOrder.ButtonType, NewOrder.Floor)
-				if (NewOrder.Ip == localIP) {
-					extOrder <- NewOrder
-				}
+				extOrder <- NewOrder
 			case NewPanelOrder := <- Panelorder:
 				sendObject.MessageType = "ORDER"
 				sendObject.Order = NewPanelOrder
@@ -462,10 +463,6 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 				closing<-1
 				return
 
-			default:
-				fmt.Println("These are the adressess online: ")
-				PrintAddresses()
-				time.Sleep(time.Second)
 			}
 		}
 		
@@ -492,7 +489,7 @@ func TCPAccept(writeToSocket chan int, stopTCP chan int) {
 		select {
 
 			case <-writeToSocket:
-				fmt.Println("Writing to sockets!")
+				//fmt.Println("Writing to sockets!")
 				listener.SetDeadline(time.Now().Add(time.Millisecond*100))
 				remoteConn, error := listener.AcceptTCP()
 				if (error == nil){
@@ -596,20 +593,10 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 	writeToSocketMap := make(chan int,1)
 	recvInfo := make(chan ElevLib.MyInfo)
 	recvOrder := make(chan ElevLib.MyOrder)
-	closing := make(chan int, 1)
+	closingMaster := make(chan int, 1)
+	closingSlave := make(chan int, 1)
 	stopTCP := make(chan int, 1)
 	stopRead := make(chan int, 1)
-	newInfo := ElevLib.MyInfo{
-		Ip: localIP,
-		Dir: 1,
-		CurrentFloor: 1,
-		InternalOrders: []int{1,2,3},
-	}
-	newOrder := ElevLib.MyOrder{
-		Ip: localIP,
-		ButtonType: ElevLib.BUTTON_CALL_UP,
-		Floor: 2,
-	}
 
 
 	for {
@@ -623,20 +610,17 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 				time.Sleep(time.Second)
 				writeToSocketMap<-1
 				go ReadALL(writeToSocketMap, recvInfo, recvOrder, stopRead)
-				go Master(newInfoChan, externalOrderChan, newExternalOrderChan, slaveChan, closing, stopTCP, stopRead, recvInfo, recvOrder)
-				newExternalOrderChan<-newOrder
-				<- closing
+				go Master(newInfoChan, externalOrderChan, newExternalOrderChan, slaveChan, closingMaster, stopTCP, stopRead, recvInfo, recvOrder)
+				<- closingMaster
 				master = false
 
 			case <- slaveChan:
 
 				slave = true
 				fmt.Println("IM SLAVE")
-				go Slave(newInfoChan, externalOrderChan, newExternalOrderChan, masterChan, closing, stopRead)
+				go Slave(newInfoChan, externalOrderChan, newExternalOrderChan, masterChan, closingSlave, stopRead)
 				time.Sleep(time.Second)
-				newInfoChan<-newInfo
-				fmt.Println("info sent")
-				<- closing
+				<- closingSlave
 				slave = false
 
 

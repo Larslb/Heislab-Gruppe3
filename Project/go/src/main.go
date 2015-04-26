@@ -22,6 +22,7 @@ func main() {
 	// DETTE ER NYTT (Se lenger ned for det gamle)
 
 	localIp,_ := Network.GetLocalIP()
+	Network.Init()
 	fmt.Println("MAIN: localIp= ",localIp)
 
 	errorDetection := make(chan bool) // Brukes ikke til noe enda. Må finne en passende type.  string??
@@ -31,6 +32,13 @@ func main() {
 	internalOrderChan := make(chan ElevLib.MyOrder)
 
 
+	//NETWORKCHANNELS
+	newInfoChan := make(chan ElevLib.MyInfo) 
+	newPanelOrderChan := make(chan ElevLib.MyOrder)
+	readAndWriteAdresses := make(chan int, 1)
+	masterChan := make(chan int)
+	slaveChan := make(chan int)
+
 	qM2FSM := make(chan ElevLib.QM2FSMchannels)
 	//oh2fsmChans       := make(chan ElevLib.OrderHandler2FSMchannels)
 	//send2fsm		  := make(chan ElevLib.OrderHandler2FSMchannels)
@@ -39,10 +47,24 @@ func main() {
 	setLightsOff      := make(chan []int)
 	//currentFloorChan  := make(chan int)
 	//currentFloorUdateFSM := make(chan int)
-	
 
+
+	//NETWORK INIT!
+	go Network.SendAliveMessageUDP()
+	go Network.ReadAliveMessageUDP(readAndWriteAdresses)
+	readAndWriteAdresses<-1
+	Network.PrintAddresses()
+	time.Sleep(time.Second)
+	go Network.SolvMaster(readAndWriteAdresses, masterChan, slaveChan)
+
+	time.Sleep(time.Second)
+
+	go Network.Network3(newInfoChan, externalOrderChan, newPanelOrderChan, masterChan, slaveChan)
+
+	time.Sleep(time.Second)
+	
 	go Driver.ReadElevPanel(internalOrderChan)
-	go Driver.ReadFloorPanel(externalOrderChan)
+	go Driver.ReadFloorPanel(newPanelOrderChan)
 	//go Driver.ReadSensors(sensorchan)
 	go Driver.SetLights(setLightsOn, setLightsOff)
 
@@ -51,7 +73,7 @@ func main() {
 		fmt.Println("MAIN: Could not initiate elevator!")
 	}*/
 
-	go Queue.Queue_Manager(qM2FSM, internalOrderChan, externalOrderChan, setLightsOn, localIp)
+	go Queue.Queue_Manager(qM2FSM, internalOrderChan, externalOrderChan, setLightsOn, localIp, newInfoChan)
 	go Driver.Fsm(qM2FSM, setLightsOff)
 
 	//fmt.Println("MAIN: Ready to synchronize Queue and Fsm")
