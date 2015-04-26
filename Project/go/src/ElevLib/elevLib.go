@@ -51,14 +51,4 @@ type QM2FSMchannels struct { // NY
 	Currentfloorupdate chan int
 }
 
-type Queue2OrderHandlerchannels struct { // SLETTE ?
-	IOrdersChan chan MyOrder
-	EOrdersChan chan MyOrder
-	IsAliveChan chan bool
-}
 
-type NewReqFSM struct { // GAMMEL   SLETTE ?
-	OrderChan chan NextOrder
-	UpdateOrderChan chan NextOrder
-	KillThread chan bool
-}

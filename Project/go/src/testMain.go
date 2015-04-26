@@ -4,28 +4,82 @@ import (
 
 	"fmt"
 	//"./Driver"
-	"./Network"
-	"./ElevLib"
-	"time"
-
+	//"./Network"
+	//"./ElevLib"
+	//"time"
 )
 
-/*func ReeeadSensors(){  // ENDRET TIL EXPORT FUNC
+
+func sortInDirection(iOrders []int, currentFloor int, direction int) []int {
+
+
+	tmpOrders := []int{}
+	tmpOrders = append(tmpOrders, iOrders[0])
+
 	
-	//current_floor := -1
-	
-	for {
-		tmpVal := Driver.Elev_get_floor_sensor_signal()
-		fmt.Println("Sensor read: " ,tmpVal)	
-		time.Sleep(time.Millisecond)
+
+	for i := 1; i < len(iOrders) ; i++ {
+		tmpOrders = setInternalOrder(tmpOrders, iOrders[i], currentFloor, direction)
+
 	}
+
+	return tmpOrders
 }
-*/
+
+func setInternalOrder(iOrders []int, orderfloor, currentFloor, dir int) ([]int) {
+	
+	if dir == 1{
+		if currentFloor > orderfloor {
+			return append(iOrders, orderfloor)
+
+		}else if currentFloor == orderfloor {
+				return insert(iOrders, orderfloor, 0)
+		}
+
+		for i := 0; i < len(iOrders); i++ {
+			if orderfloor < iOrders[i] || currentFloor > iOrders[i] {
+				return insert(iOrders, orderfloor, i)
+			}
+		}
+
+	} else if dir == -1 {
+		if currentFloor < orderfloor {
+			return append(iOrders, orderfloor)
+
+		}else if currentFloor == orderfloor {
+				return insert(iOrders, orderfloor, 0)
+		}
+
+		for i := 0; i < len(iOrders); i++{
+			if orderfloor > iOrders[i] || currentFloor < iOrders[i] {
+				return insert(iOrders, orderfloor, i)
+			}
+		}
+	}
+
+	return append(iOrders, orderfloor)
+}
+
+func insert(orders []int ,floor, i int) []int {
+	tmp := make([]int, len(orders[:i]), len(orders)+1)
+	copy(tmp, orders[:i])
+	tmp = append(tmp, floor)
+	tmp = append(tmp, orders[i:]...)
+	return tmp
+}
 
 
 func main() {
 
+	direction := 1
+	currentFloor := 0
+	internalOrders := []int{3,1,4,2,0,10}
 
+	internalOrders = sortInDirection(internalOrders, currentFloor, direction)
+
+	fmt.Println(internalOrders)
+
+	/*
 	Network.Init()
 	fmt.Println("INTI!")
 	newInfoChan := make(chan ElevLib.MyInfo)
@@ -72,7 +126,9 @@ func main() {
 					fmt.Println("Time out")
 			}
 	}
-	*/
+	
 	time.Sleep(100*time.Second)
 	fmt.Println("Main: Terminating")
+
+	*/
 }

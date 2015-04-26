@@ -108,6 +108,9 @@ func floor_reached(floorReached chan ElevLib.NextOrder, updateCurrentFloor chan 
 	}
 }
 
+
+
+
 func Fsm( rcvChannelsFromQueue chan ElevLib.QM2FSMchannels, setLightsOff chan []int) {
 
 	floorSensor := make(chan int)

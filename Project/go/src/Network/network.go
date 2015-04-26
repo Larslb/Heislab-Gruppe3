@@ -436,6 +436,8 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 					Order: ElevLib.MyOrder{},
 					Info: InfoUpdate,
 				}
+
+				fmt.Println("Sending: ", sendObject.MessageType, sendObject.Order, sendObject.Info)
 				PrintAddresses()
 
 				sentinfo := writetoSocket(masterSocket, sendObject)
@@ -547,4 +549,86 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 	}
 
 
+}
+
+//////////////////////////////////////////////////////
+//													//
+// DET SOM HØRER TIL COST FUNCTION STÅR UNDER HER   //
+//													//
+//////////////////////////////////////////////////////
+func costfunction( info map[string]ElevLib.MyInfo, order ElevLib.MyOrder) string {
+	
+	elevsInDirection := inDirection(info, order)
+
+	nearestElev := shortestRoute(info, order, elevsInDirection)
+
+	return nearestElev	
+
+	/*
+	if len(nearestElevs) == 1 { return elevsInDirection[0] }   
+
+	bestElevs := fewestOrders(info, nearestElevs)	KAN OPPGRADERES TIL Å RETURNERE DEN MED FÆRREST BESTILLINGER
+
+	return bestElevs[0]*/
+}
+
+func inDirection(info map[string]ElevLib.MyInfo, order ElevLib.MyOrder ) []string {
+	elevs := []string{}
+	var orderDirectionRelativeElev int
+
+	for key, val := range info {
+		if order.Floor < val.CurrentFloor {
+			orderDirectionRelativeElev = -1
+		} else if order.Floor > val.CurrentFloor {
+			orderDirectionRelativeElev = 1
+		} else {
+			orderDirectionRelativeElev = 0
+		}
+
+		if val.Dir == orderDirectionRelativeElev || val.Dir == 0  {
+			elevs = append(elevs, key)
+		}
+	}
+
+	return elevs
+
+}
+
+func shortestRoute(info map[string]ElevLib.MyInfo, order ElevLib.MyOrder, elevlist []string ) string {
+
+	if length := len(elevlist); length > 2 {
+		m := length/2
+		list1 := shortestRoute(info, order, elevlist[0:m])
+		list2 := shortestRoute(info, order, elevlist[m:length])
+
+		dist1 := abs(info[list1].CurrentFloor-order.Floor)
+		dist2 :=  abs(info[list2].CurrentFloor-order.Floor)
+
+		if dist1 < dist2 {
+			return list1
+		} else { 
+			return list2
+		}
+
+	} else if len(elevlist) == 1 {
+		return elevlist[0]
+	} else {
+		dist1 := abs(info[elevlist[0]].CurrentFloor-order.Floor)
+		dist2 :=  abs(info[elevlist[1]].CurrentFloor-order.Floor)
+
+		if dist1 < dist2 {
+			return elevlist[0]
+		} else { 
+			return elevlist[1]
+		}
+	}
+
+	return elevlist[0]  // HVIS IKKE VI RETURNERER PÅ SLUTTEN KLAGER KOMPILATOREN
+}
+
+func abs(number int) int {
+	if number < 0 {
+		return -number
+	}
+	return number
 }

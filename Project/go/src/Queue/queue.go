@@ -18,6 +18,17 @@ var DeleteOrderChan chan []int
 var setLightsChan chan []int
 
 
+func sortInDirection(iOrders []int, currentFloor int, direction int) []int {
+
+	tmpOrders := []int{}
+	tmpOrders = append(tmpOrders, iOrders[0])
+	for i := 1; i < len(iOrders) ; i++ {
+		tmpOrders = setInternalOrder(tmpOrders, iOrders[i], currentFloor, direction)
+	}
+
+	return tmpOrders
+}
+
 func setInternalOrder(iOrders []int, orderfloor, currentFloor, dir int) ([]int) {
 	
 	if dir == 1{
@@ -29,7 +40,7 @@ func setInternalOrder(iOrders []int, orderfloor, currentFloor, dir int) ([]int) 
 		}
 
 		for i := 0; i < len(iOrders); i++ {
-			if orderfloor < iOrders[i]{
+			if orderfloor < iOrders[i] || currentFloor > iOrders[i] {
 				return insert(iOrders, orderfloor, i)
 			}
 		}
@@ -43,7 +54,7 @@ func setInternalOrder(iOrders []int, orderfloor, currentFloor, dir int) ([]int) 
 		}
 
 		for i := 0; i < len(iOrders); i++{
-			if orderfloor > iOrders[i] {
+			if orderfloor > iOrders[i] || currentFloor < iOrders[i] {
 				return insert(iOrders, orderfloor, i)
 			}
 		}
@@ -314,10 +325,11 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 	localIp = localIpsent
 
 	currentFloor := -1
-	direction    :=  0
+	orderdirection    :=  0
 
-
-	internalOrders, externalOrders := initializeOrders()
+	internalOrders := []int{}
+	externalOrders := [2][ElevLib.N_FLOORS]string{}
+	//internalOrders, externalOrders := initializeOrders()
 
 	lastOrder         := ElevLib.NextOrder{}
 	lastOrderFinished := true
@@ -348,12 +360,12 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 					setLightsOn <- []int{iOrder.ButtonType, iOrder.Floor, 1}
 
 					
-					internalOrders = setInternalOrder(internalOrders, iOrder.Floor , currentFloor , direction)
+					internalOrders = setInternalOrder(internalOrders, iOrder.Floor , currentFloor , orderdirection)
 
-					fmt.Println("QUEUE: currentFloor = ", currentFloor, ", direction = ", direction)
+					fmt.Println("QUEUE: currentFloor = ", currentFloor, ", orderdirection = ", orderdirection)
 					fmt.Println(" ")
 
-					nxtOrder := nextOrder(internalOrders, externalOrders, currentFloor, direction)
+					nxtOrder := nextOrder(internalOrders, externalOrders, currentFloor, orderdirection)
 
 					fmt.Println("QUEUE: internalOrders = ", internalOrders, ", externalOrders = ", externalOrders)
 					fmt.Println(" ")
@@ -361,17 +373,23 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 					if lastOrderFinished {
 						orderChan <- nxtOrder
 						lastOrder = nxtOrder
-						direction = nxtOrder.Direction
+						if orderdirection != nxtOrder.Direction {
+							internalOrders = sortInDirection(internalOrders, currentFloor, nxtOrder.Direction)
+						}
+						orderdirection = nxtOrder.Direction
 						lastOrderFinished = false
 					} else if sendUpdate(lastOrder, nxtOrder) {
 						updOrderChan <- nxtOrder
 						lastOrder = nxtOrder
-						direction = nxtOrder.Direction
+						if orderdirection != nxtOrder.Direction {
+						internalOrders = sortInDirection(internalOrders, currentFloor, nxtOrder.Direction)
+						}
+						orderdirection = nxtOrder.Direction
 					}
 
 					newInfo <- ElevLib.MyInfo{
 						Ip: localIp,
-						Dir: direction,
+						Dir: orderdirection,
 						CurrentFloor: currentFloor,
 						InternalOrders: internalOrders,
 					}
@@ -390,10 +408,10 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 					setLightsOn <- []int{eOrder.ButtonType, eOrder.Floor, 1}
 					externalOrders = setExternalOrder(externalOrders, eOrder)
 
-					fmt.Println("QUEUE: currentFloor = ", currentFloor, ", direction = ", direction)
+					fmt.Println("QUEUE: currentFloor = ", currentFloor, ", orderdirection = ", orderdirection)
 					fmt.Println(" ")
 
-					nxtOrder := nextOrder(internalOrders, externalOrders, currentFloor, direction)
+					nxtOrder := nextOrder(internalOrders, externalOrders, currentFloor, orderdirection)
 
 					fmt.Println("QUEUE: internalOrders = ", internalOrders, ", externalOrders = ", externalOrders)
 					fmt.Println(" ")
@@ -401,12 +419,18 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 						orderChan <- nxtOrder
 						lastOrder = nxtOrder
 						lastOrderFinished = false
-						direction = nxtOrder.Direction
+						if orderdirection != nxtOrder.Direction {
+							internalOrders = sortInDirection(internalOrders, currentFloor, nxtOrder.Direction)
+						}
+						orderdirection = nxtOrder.Direction
 
 					} else if sendUpdate(lastOrder, nxtOrder) {  
 						updOrderChan <- nxtOrder
 						lastOrder = nxtOrder
-						direction = nxtOrder.Direction
+						if orderdirection != nxtOrder.Direction {
+							internalOrders = sortInDirection(internalOrders, currentFloor, nxtOrder.Direction)
+						}
+						orderdirection = nxtOrder.Direction
 					}
 				}
 
@@ -428,7 +452,7 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 					fmt.Println(" ")
 					newInfo <- ElevLib.MyInfo{
 						Ip: localIp,
-						Dir: direction,
+						Dir: orderdirection,
 						CurrentFloor: currentFloor,
 						InternalOrders: internalOrders,
 					}
@@ -441,17 +465,20 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 					// ERROR
 				}
 
-				nxtOrder := nextOrder(internalOrders, externalOrders, currentFloor, direction)
+				nxtOrder := nextOrder(internalOrders, externalOrders, currentFloor, orderdirection)
 
 				if nxtOrder.Floor != -1 {
 					orderChan <- nxtOrder
-					direction = nxtOrder.Direction
+					if orderdirection != nxtOrder.Direction {
+						internalOrders = sortInDirection(internalOrders, currentFloor, nxtOrder.Direction)
+					}
+					orderdirection = nxtOrder.Direction
 					lastOrder = nxtOrder
 					lastOrderFinished = false
 				} else {
 					fmt.Println("QUEUE: No more orders")
 					fmt.Println(" ")
-					direction = 0
+					orderdirection = 0
 				}
 
 			case currentFloor = <- currentFloorUpdateChan:
@@ -460,7 +487,7 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 
 				newInfo <- ElevLib.MyInfo{
 						Ip: localIp,
-						Dir: direction,
+						Dir: orderdirection,
 						CurrentFloor: currentFloor,
 						InternalOrders: internalOrders,
 					}
@@ -497,6 +524,7 @@ func sendUpdate(lastOrder, newOrder ElevLib.NextOrder) bool {
 	return false
 }
 
+// NØDVENDIG?
 func initializeOrders() ([]int, [2][ElevLib.N_FLOORS]string){
 	internalOrders := []int{}
 	externalOrders := [2][ElevLib.N_FLOORS]string{}
