@@ -48,7 +48,7 @@ func main() {
 	setLightsOff      := make(chan []int)
 	//currentFloorChan  := make(chan int)
 	//currentFloorUdateFSM := make(chan int)
-
+	orderdeletion := make(chan ElevLib.MyOrder)
 
 	//NETWORK INIT!
 	go Network.SendAliveMessageUDP()
@@ -60,7 +60,7 @@ func main() {
 
 	time.Sleep(time.Second)
 
-	go Network.Network3(newInfoChan, externalOrderChan, newPanelOrderChan, masterChan, slaveChan, ordrDeleteFromMaster)
+	go Network.Network3(newInfoChan, externalOrderChan, newPanelOrderChan, masterChan, slaveChan, orderdeletion, ordrDeleteFromMaster)
 
 	time.Sleep(time.Second)
 	
@@ -74,7 +74,7 @@ func main() {
 		fmt.Println("MAIN: Could not initiate elevator!")
 	}*/
 
-	go Queue.Queue_Manager(qM2FSM, internalOrderChan, externalOrderChan, setLightsOn, localIp, newInfoChan, ordrDeleteFromMaster)
+	go Queue.Queue_Manager(qM2FSM, internalOrderChan, externalOrderChan, setLightsOn, localIp, newInfoChan, orderdeletion, ordrDeleteFromMaster)
 	go Driver.Fsm(qM2FSM, setLightsOff)
 
 	//fmt.Println("MAIN: Ready to synchronize Queue and Fsm")

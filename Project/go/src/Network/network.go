@@ -184,7 +184,7 @@ func broadCastOrder(order ElevLib.MyOrder) {
 	time.Sleep(10*time.Millisecond)
 	for i:=0;i<10;i++ {
 		fmt.Println("BROADCASTINGORDER!!!!")
-		buf,_ := json.Marshal([]byte(string("SetOrder")) + order)
+		buf,_ := json.Marshal(order)
 		_,err := broadcastOrderSock.Write(buf)
 		if err != nil{
 			panic(err)
@@ -216,7 +216,7 @@ func RecieveOrders(orderchannel chan ElevLib.MyOrder, stopRecieving chan int) {
 //////////////////////////TCP funksjoner/////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelOrder chan ElevLib.MyOrder, slaveChan chan int, closing chan int, stopTCP chan int, stopRead chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan ElevLib.MyOrder, orderdeletion chan ElevLib.MyOrder), orderDelFromMaster chan ElevLib.MyOrder {
+func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelOrder chan ElevLib.MyOrder, slaveChan chan int, closing chan int, stopTCP chan int, stopRead chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan ElevLib.MyOrder, orderdeletion chan ElevLib.MyOrder, orderDelFromMaster chan ElevLib.MyOrder) {
 	//var orders := []queue.MyOrder{}
 	//recvInfo := make(chan ElevLib.MyInfo)
 	//recvOrder := make(chan ElevLib.MyOrder)
@@ -228,7 +228,7 @@ func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelO
 	//go ReadALL(writeToSocketMap, recvInfo, recvOrder)
 	fmt.Println("MASTER:", "Going on")
 	fmt.Println("")
-	time.Sleep(1*time.Second)
+	time.Sleep(10*time.Millisecond)
 	for {
 		//PrintAddresses()
 		select{
@@ -246,7 +246,7 @@ func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelO
 				broadCastOrder(NewOrder)
 
 			case Ownorder := <- PanelOrder:
-
+				Ownorder.Set = true
 				Ownorder.Ip = costfunction(Ownorder)
 				fmt.Println("NETWORK: ","new panel Order recieved: ")
 				
@@ -413,7 +413,7 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 			case deleteOrder := <-orderdeletion:
 				sendObject := ElevLib.MyElev {
 					MessageType: "ORDER",
-					Order: NewPanelOrder,
+					Order: deleteOrder,
 					Info: ElevLib.MyInfo{},
 				}
 
@@ -484,7 +484,7 @@ func ConnectToIP(IP string)(*net.TCPConn, bool){
 ///////////////////////////////diverse funksjoner/////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 
-func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.MyOrder, newExternalOrderChan chan ElevLib.MyOrder, masterChan chan int, slaveChan chan int, ordrDeleteFromMaster chan ElevLib.MyOrder) {
+func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.MyOrder, newExternalOrderChan chan ElevLib.MyOrder, masterChan chan int, slaveChan chan int, orderdeletion chan ElevLib.MyOrder ,ordrDeleteFromMaster chan ElevLib.MyOrder) {
 	
 	writeToSocketMap := make(chan int,1)
 	recvInfo := make(chan ElevLib.MyInfo)
@@ -506,7 +506,7 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 				time.Sleep(time.Millisecond)
 				writeToSocketMap<-1
 				go ReadALL(writeToSocketMap, recvInfo, recvOrder, stopRead)
-				go Master(newInfoChan, externalOrderChan, newExternalOrderChan, slaveChan, closingMaster, stopTCP, stopRead, recvInfo, recvOrder, ordrDeleteFromMaster)
+				go Master(newInfoChan, externalOrderChan, newExternalOrderChan, slaveChan, closingMaster, stopTCP, stopRead, recvInfo, recvOrder, orderdeletion,ordrDeleteFromMaster)
 				<- closingMaster
 				master = false
 
@@ -514,7 +514,7 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 
 				slave = true
 				fmt.Println("IM SLAVE")
-				go Slave(newInfoChan, externalOrderChan, newExternalOrderChan, masterChan, closingSlave, stopRead, ordrDeleteFromMaster)
+				go Slave(newInfoChan, externalOrderChan, newExternalOrderChan, masterChan, closingSlave, stopRead, orderdeletion, ordrDeleteFromMaster)
 				time.Sleep(time.Millisecond)
 				<- closingSlave
 				slave = false

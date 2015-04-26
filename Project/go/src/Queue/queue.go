@@ -237,8 +237,8 @@ func notInExternalOrders(eOrders [2][ElevLib.N_FLOORS]string, orderfloor ElevLib
 func nextOrder(iOrder []int, eOrders [2][ElevLib.N_FLOORS]string, currentFloor int, dir int) (ElevLib.NextOrder) {
 	
 	var nxtOrder ElevLib.NextOrder
-	var eTmpFloor int
-	var eTmpDir int
+	//var eTmpFloor int
+	//var eTmpDir int
 
 	if currentFloor == -1{
 		nxtOrder = ElevLib.NextOrder{
@@ -309,16 +309,14 @@ func deleteOrders(internalOrders []int, externalOrders [2][ElevLib.N_FLOORS]stri
 			internalOrders = []int{}
 		}
 	}else{
-		if internalOrders[0] == order.Floor {
-			internalOrders = internalOrders[1:]
+		if len(internalOrders) != 0{
+			if internalOrders[0] == order.Floor{
+				internalOrders = internalOrders[1:]
+			}
 		}
 		externalOrders[order.ButtonType][order.Floor] = "x"
 	}
 	return internalOrders, externalOrders
-}
-
-func deleteExternalOrders(internalOrders []int, externalOrders [2][ElevLib.N_FLOORS]string, order ElevLib.MyOrder ) {
-	
 }
 
 
@@ -383,7 +381,7 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 					if lastOrderFinished {
 						orderChan <- nxtOrder
 						lastOrder = nxtOrder
-						if orderdirection != nxtOrder.Direction {
+						if orderdirection != nxtOrder.Direction && len(internalOrders) > 1{
 							internalOrders = sortInDirection(internalOrders, currentFloor, nxtOrder.Direction)
 						}
 						orderdirection = nxtOrder.Direction
@@ -391,7 +389,7 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 					} else if sendUpdate(lastOrder, nxtOrder) {
 						updOrderChan <- nxtOrder
 						lastOrder = nxtOrder
-						if orderdirection != nxtOrder.Direction {
+						if orderdirection != nxtOrder.Direction && len(internalOrders) > 1 {
 						internalOrders = sortInDirection(internalOrders, currentFloor, nxtOrder.Direction)
 						}
 						orderdirection = nxtOrder.Direction
@@ -424,7 +422,7 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 						orderChan <- nxtOrder
 						lastOrder = nxtOrder
 						lastOrderFinished = false
-						if orderdirection != nxtOrder.Direction {
+						if orderdirection != nxtOrder.Direction && len(internalOrders) > 1{
 							internalOrders = sortInDirection(internalOrders, currentFloor, nxtOrder.Direction)
 						}
 						orderdirection = nxtOrder.Direction
@@ -432,12 +430,12 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 					} else if sendUpdate(lastOrder, nxtOrder) {  
 						updOrderChan <- nxtOrder
 						lastOrder = nxtOrder
-						if orderdirection != nxtOrder.Direction {
+						if orderdirection != nxtOrder.Direction && len(internalOrders) > 1{
 							internalOrders = sortInDirection(internalOrders, currentFloor, nxtOrder.Direction)
+							}
 						}
 						orderdirection = nxtOrder.Direction
 					}
-				}
 
 
 			case delOrder := <-deleteOrderChan:
@@ -463,7 +461,7 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 							Floor: delOrder.Floor,
 							Set: false,
 						}
-						orderdeletion <- delOrder
+						orderdeletion <- order
 					} 
 					newInfo <- sendInfo
 					fmt.Println(" ")
@@ -482,7 +480,7 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 
 				if nxtOrder.Floor != -1 {
 					orderChan <- nxtOrder
-					if orderdirection != nxtOrder.Direction {
+					if orderdirection != nxtOrder.Direction && len(internalOrders) > 1 {
 						internalOrders = sortInDirection(internalOrders, currentFloor, nxtOrder.Direction)
 					}
 					orderdirection = nxtOrder.Direction
@@ -494,14 +492,8 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 					orderdirection = 0
 				}
 			case orderdelete := <- orderDelFromMaster:
-				odel := ElevLib.NextOrder{
-					ButtonType: orderdelete.ButtonType,
-					Floor: orderdelete.Floor,
-					Direction: 
-				}
+				externalOrders[orderdelete.ButtonType][orderdelete.Floor] = " "
 
-
-				deleteOrders(internalOrders, externalOrders, orderdelete)
 			case currentFloor = <- currentFloorUpdateChan:
 				fmt.Println("QUEUE: currentFloor = ", currentFloor)
 				fmt.Println(" ")
