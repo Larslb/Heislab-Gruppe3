@@ -77,6 +77,7 @@ func SolvMaster(read chan int, masterchan chan int , slavechan chan int) {
 				lowestIP = key
 			}
 		}
+		fmt.Println("LOWESTIP = ", lowestIP)
 		if lowestIP == localIP && !master {
 			masterchan<-1
 		}else if lowestIP != localIP && !slave {
@@ -517,6 +518,7 @@ func Network3(newInfoChan chan ElevLib.MyInfo, externalOrderChan chan ElevLib.My
 				go Slave(newInfoChan, externalOrderChan, newExternalOrderChan, masterChan, closingSlave, stopRead, orderdeletion, ordrDeleteFromMaster)
 				time.Sleep(time.Millisecond)
 				<- closingSlave
+				time.Sleep(time.Millisecond)
 				slave = false
 
 
