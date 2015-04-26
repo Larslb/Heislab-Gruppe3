@@ -22,7 +22,6 @@ type MyOrder struct {
 	Ip string
 	ButtonType int
 	Floor int
-// ENDRET
 }
 
 type MyElev struct {

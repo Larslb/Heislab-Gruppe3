@@ -268,58 +268,6 @@ func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelO
 
 
 
-func orderhandler(order ElevLib.MyOrder)(ElevLib.MyOrder) {
-
-	//var besteheis ElevLib.MyInfo
-	//order.Ip = localIP
-	//return order
-	/*
-	for key,value := range infomap {
-		if value.CurrentFloor == order.Floor {
-			besteheis = infomap[key]			
-		}
-		else{
-			if abs(float(value.CurrentFloor) - float(order.Floor)) > 1 {
-				besteheis = infomap[key]
-			}
-			else{
-				if abs(value.CurrentFloor -order.Floor) > 2 {
-					besteheis = infomap[key]
-				}
-				else{}
-			}
-		}
-
-	}*/
-	for _,value := range infomap{
-		order.Ip = value.Ip
-		return order
-	}
-	order.Ip = localIP
-	return order
-	/*
-		
-		else if value.internalOrders == nil {
-			
-		}
-		else if order.ButtonType == elev.BUTTON_CALL_UP {
-
-		}
-		else if  order.ButtonType == elev.BUTTON_CALL_DOWN{
-
-		}
-		if value.internalOrders[0] == order.Floor && value.dir == {
-			
-		}
-		)
-		for i := 0; i < len(value.internalOrders); i++ {
-			if value.internalOrders[i] == order.Floor && value.dir 
-				
-			}
-		}*/
-
-}
-
 func readfromsocket( conn *net.TCPConn,  recvInfo chan ElevLib.MyInfo, recvOrder chan ElevLib.MyOrder ) bool {
 	buffer := make([]byte,1024)
 	conn.SetReadDeadline(time.Now().Add(80*time.Millisecond))
