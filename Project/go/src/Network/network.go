@@ -355,7 +355,7 @@ func writetoSocket(socket *net.TCPConn, object ElevLib.MyElev )(bool){
 		}
 		return true
 	}else if object.MessageType == "ORDER" {
-		buffer,_ := json.Marshal(object.Order)
+		buffer,_ := json.Marshal(object)
 		_,err:= socket.Write(buffer)
 		if err != nil {
 			fmt.Println("error", err)
