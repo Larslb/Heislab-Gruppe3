@@ -395,6 +395,12 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 						orderdirection = nxtOrder.Direction
 					}
 
+
+
+					sendInfo.Ip = localIp
+					sendInfo.Dir = orderdirection
+					sendInfo.CurrentFloor = currentFloor
+					sendInfo.InternalOrders = internalOrders
 					newInfo <- sendInfo
 					fmt.Println(" ")
 					fmt.Println("-------------------------")
@@ -463,6 +469,10 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 						}
 						orderdeletion <- order
 					} 
+					sendInfo.Ip = localIp
+					sendInfo.Dir = orderdirection
+					sendInfo.CurrentFloor = currentFloor
+					sendInfo.InternalOrders = internalOrders
 					newInfo <- sendInfo
 					fmt.Println(" ")
 					fmt.Println("-------------------------")
@@ -497,7 +507,13 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 			case currentFloor = <- currentFloorUpdateChan:
 				fmt.Println("QUEUE: currentFloor = ", currentFloor)
 				fmt.Println(" ")
+				
 
+
+				sendInfo.Ip = localIp
+				sendInfo.Dir = orderdirection
+				sendInfo.CurrentFloor = currentFloor
+				sendInfo.InternalOrders = internalOrders
 				newInfo <- sendInfo
 				fmt.Println(" ")
 				fmt.Println("-------------------------")
