@@ -200,7 +200,7 @@ func broadCastOrder(order ElevLib.MyOrder) {
 	broadcastOrderSock,_ := net.DialUDP("udp", nil, broadcastOrderaddr)
 	time.Sleep(10*time.Millisecond)
 	for i:=0;i<10;i++ {
-		fmt.Println("BROADCASTINGORDER!!!!")
+
 		buf,_ := json.Marshal(order)
 		_,err := broadcastOrderSock.Write(buf)
 		if err != nil{
@@ -288,6 +288,7 @@ func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelO
 				
 
 		}
+		time.Sleep(10*time.Millisecond)
 	}
 }
 
