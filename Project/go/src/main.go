@@ -17,14 +17,14 @@ import (
 
 func main() {
 
-
+	fmt.Println("NFE")
 
 	// DETTE ER NYTT (Se lenger ned for det gamle)
 
 	localIp,_ := Network.GetLocalIP()
-	Network.Init()
-	fmt.Println("MAIN: localIp= ",localIp)
 
+	fmt.Println("MAIN: localIp= ",localIp)
+		Network.Init()
 	errorDetection := make(chan bool) // Brukes ikke til noe enda. Må finne en passende type.  string??
 	
 	//sensorchan 		  := make(chan int)

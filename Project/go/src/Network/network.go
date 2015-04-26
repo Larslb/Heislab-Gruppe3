@@ -54,6 +54,7 @@ func GetLocalIP() (string,*net.TCPConn){
    addr, _ := net.ResolveTCPAddr("tcp4", "google.com:80")
    conn, _ := net.DialTCP("tcp4", nil, addr)
    return strings.Split(conn.LocalAddr().String(), ":")[0],conn
+
 }
 
 
@@ -335,7 +336,7 @@ func readfromsocket( conn *net.TCPConn,  recvInfo chan ElevLib.MyInfo, recvOrder
 
 	fmt.Println(" ")
 	fmt.Println("-------------------------")
-	fmt.Println("RECIEVED  TEMP: ", temp.MessageType)
+	fmt.Println("RECIEVED  TEMP: ", temp.MessageType, temp.Info, temp.Order)
 	fmt.Println("-------------------------")
 	fmt.Println(" ")
 	if temp.MessageType == "INFO" {
@@ -400,7 +401,7 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 		masterSocket,connected = ConnectToIP(lowestIP)
 	}
 	recievechannel := make(chan ElevLib.MyOrder)
-	var sendObject ElevLib.MyElev
+	//var sendObject ElevLib.MyElev
 	//slavechange := make(chan bool)
 
 	//go slaveToMasterMode(slavechange)
@@ -416,9 +417,12 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 				fmt.Println(NewOrder.Ip, NewOrder.ButtonType, NewOrder.Floor)
 				extOrder <- NewOrder
 			case NewPanelOrder := <- Panelorder:
-				sendObject.MessageType = "ORDER"
-				sendObject.Order = NewPanelOrder
-				sendObject.Info = ElevLib.MyInfo{}
+
+				sendObject := ElevLib.MyElev {
+					MessageType: "ORDER",
+					Order: NewPanelOrder,
+					Info: ElevLib.MyInfo{},
+				}
 
 				sentorder := writetoSocket(masterSocket, sendObject)
 				for !sentorder {
@@ -427,9 +431,11 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 
 			case InfoUpdate := <- sendInfo:
 				fmt.Println("Sending InfoUpdate to master")
-				sendObject.MessageType = "INFO"
-				sendObject.Order = ElevLib.MyOrder{}
-				sendObject.Info = InfoUpdate
+				sendObject := ElevLib.MyElev{
+					MessageType: "INFO",
+					Order: ElevLib.MyOrder{},
+					Info: InfoUpdate,
+				}
 				PrintAddresses()
 
 				sentinfo := writetoSocket(masterSocket, sendObject)

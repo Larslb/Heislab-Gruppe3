@@ -375,6 +375,11 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 						CurrentFloor: currentFloor,
 						InternalOrders: internalOrders,
 					}
+					fmt.Println(" ")
+					fmt.Println("-------------------------")
+					fmt.Println("SENDING INFO iOrder TRIGGER: " )
+					fmt.Println("-------------------------")
+					fmt.Println(" ")
 				}
 
 
@@ -427,6 +432,11 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 						CurrentFloor: currentFloor,
 						InternalOrders: internalOrders,
 					}
+					fmt.Println(" ")
+					fmt.Println("-------------------------")
+					fmt.Println("SENDING INFO delOrder TRIGGER: " )
+					fmt.Println("-------------------------")
+					fmt.Println(" ")
 				} else {
 					// ERROR
 				}
@@ -447,12 +457,18 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 			case currentFloor = <- currentFloorUpdateChan:
 				fmt.Println("QUEUE: currentFloor = ", currentFloor)
 				fmt.Println(" ")
+
 				newInfo <- ElevLib.MyInfo{
 						Ip: localIp,
 						Dir: direction,
 						CurrentFloor: currentFloor,
 						InternalOrders: internalOrders,
 					}
+				fmt.Println(" ")
+				fmt.Println("-------------------------")
+				fmt.Println("SENDING INFO CURRENTFLOOR TRIGGER: ")
+				fmt.Println("-------------------------")
+				fmt.Println(" ")
 		}
 		time.Sleep(time.Millisecond)
 	}
