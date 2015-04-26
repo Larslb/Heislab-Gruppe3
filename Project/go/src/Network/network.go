@@ -78,7 +78,6 @@ func SolvMaster(read chan int, masterchan chan int , slavechan chan int) {
 			}
 		}
 
-		fmt.Println("LOWESTIP = ", lowestIP)
 		if lowestIP == localIP && !master {
 			masterchan<-1
 		}else if lowestIP != localIP && !slave {
