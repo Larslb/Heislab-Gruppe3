@@ -4,7 +4,7 @@ import (
 
 	"fmt"
 	//"./Driver"
-	"./Network"
+	//"./Network"
 	"./ElevLib"
 	"time"
 
@@ -24,7 +24,8 @@ import (
 
 
 func main() {
-	
+
+
 	Network.Init()
 	fmt.Println("INTI!")
 	newInfoChan := make(chan ElevLib.MyInfo)

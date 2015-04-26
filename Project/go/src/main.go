@@ -24,14 +24,16 @@ func main() {
 	localIp,_ := Network.GetLocalIP()
 	fmt.Println("MAIN: localIp= ",localIp)
 
+	errorDetection := make(chan bool) // Brukes ikke til noe enda. Må finne en passende type.  string??
 	
-	
-	sensorchan 		  := make(chan int)
+	//sensorchan 		  := make(chan int)
 	externalOrderChan := make(chan ElevLib.MyOrder)
 	internalOrderChan := make(chan ElevLib.MyOrder)
 
-	oh2fsmChans       := make(chan ElevLib.OrderHandler2FSMchannels)
-	send2fsm		  := make(chan ElevLib.OrderHandler2FSMchannels)
+
+	qM2FSM := make(chan ElevLib.QM2FSMchannels)
+	//oh2fsmChans       := make(chan ElevLib.OrderHandler2FSMchannels)
+	//send2fsm		  := make(chan ElevLib.OrderHandler2FSMchannels)
 
 	setLightsOn		  := make(chan []int)
 	setLightsOff      := make(chan []int)
@@ -41,32 +43,33 @@ func main() {
 
 	go Driver.ReadElevPanel(internalOrderChan)
 	go Driver.ReadFloorPanel(externalOrderChan)
-	go Driver.ReadSensors(sensorchan)
+	//go Driver.ReadSensors(sensorchan)
 	go Driver.SetLights(setLightsOn, setLightsOff)
 
-	current_floor, err := Driver.Elev_init(sensorchan)
+	/*current_floor, err := Driver.Elev_init(sensorchan)
 	if err {
 		fmt.Println("MAIN: Could not initiate elevator!")
-	}
+	}*/
 
-	time.Sleep(time.Second)
+	go Queue.Queue_Manager(qM2FSM, internalOrderChan, externalOrderChan, setLightsOn, localIp)
+	go Driver.Fsm(qM2FSM, setLightsOff)
 
-	fmt.Println("MAIN: Elevator initiated to floor ", current_floor)
-	fmt.Println(" ")
-
-	go Queue.Queue_Manager(oh2fsmChans, internalOrderChan, externalOrderChan, setLightsOn, localIp, sensorchan)
-	go Driver.Fsm(send2fsm, setLightsOff)
-
-	fmt.Println("MAIN: Ready to synchronize Queue and Fsm")
-	fmt.Println(" ")
+	//fmt.Println("MAIN: Ready to synchronize Queue and Fsm")
+	//fmt.Println(" ")
 
 	
 	for{
 		select{
-			case initiateOrderHandling := <-oh2fsmChans:
-				fmt.Println("MAIN: Received channels from orderHandler. Sending them to Fsm.")
-				fmt.Println(" ")
-				send2fsm <- initiateOrderHandling
+
+			case err := <-errorDetection:
+				fmt.Println(err)
+
+			// Trenger jeg denne lenger??
+
+			//case initiateOrderHandling := <-oh2fsmChans:   // BRUKES IKKE
+			//	fmt.Println("MAIN: Received channels from orderHandler. Sending them to Fsm.")
+			//	fmt.Println(" ")
+			//	send2fsm <- initiateOrderHandling
 			
 			/*case current_floor := <-sensorchan:
 				fmt.Println("MAIN: currentFloor is ", current_floor)
@@ -76,10 +79,10 @@ func main() {
 				fmt.Println("MAIN: Current Floor updated throughout")
 			*/
 			case <-time.After(200*time.Millisecond):
-				time.Sleep(10*time.Millisecond)
+				time.Sleep(10*time.Second)   // zzzzzzZZZZZZZZZZZZZZZZZzzzzz
 				
 		}
-		time.Sleep(10*time.Millisecond)
+		time.Sleep(10*time.Millisecond) // zzzzzzzZZZZZZZZZZZZzzzzz
 	}
 
 

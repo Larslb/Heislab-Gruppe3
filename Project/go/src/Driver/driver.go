@@ -58,7 +58,6 @@ func ReadSensors(sensorChan chan int){  // ENDRET TIL EXPORT FUNC
 		tmpVal2 := Elev_get_floor_sensor_signal()
 			if tmpVal2 != -1 && tmpVal2 != current_floor {
 
-				fmt.Println(current_floor)
 				current_floor = tmpVal2
 				sensorChan <- current_floor
 			}
@@ -79,45 +78,121 @@ func SetLights(setLightsOn chan []int, setLightsOff chan []int) {
 	}
 }
 
-func floor_reached(floorReached chan ElevLib.NextOrder, floorSensor chan int, newOrder chan ElevLib.NextOrder, order ElevLib.NextOrder){
-	
+func floor_reached(floorReached chan ElevLib.NextOrder, updateCurrentFloor chan int,floorSensor chan int, newOrder chan ElevLib.NextOrder){
 	
 
-	go2Order := order
+
+	go2Order :=  ElevLib.NextOrder{
+		ButtonType: -2,
+		Floor: -1,
+		Direction: 0,
+	}
 	
 	for {
 		select {
 			case go2Order = <- newOrder:
+				fmt.Println("floor_reached: go2Order = ", go2Order)
 			case current_floor := <- floorSensor:
-				
+				updateCurrentFloor <- current_floor
+
 				elev_set_floor_indicator(current_floor)
 				if current_floor == go2Order.Floor {
-					
 					floorReached <- go2Order
-					return
 				}
-				time.Sleep(time.Millisecond)
 		}
+		time.Sleep(time.Millisecond)
 	}
-	fmt.Println("floor_reached: FLOOR REACHED!")
-	
 }
 
 // NYTT
 
 
-func driver(channels ElevLib.OrderHandler2FSMchannels, killDrive chan bool, setLightsOff chan []int) {
 
+
+func Fsm( rcvChannelsFromQueue chan ElevLib.QM2FSMchannels, setLightsOff chan []int) {
+
+	floorSensor := make(chan int)
+	go ReadSensors(floorSensor)
+
+	_,err := Elev_init(floorSensor)  // ER DET VITS Å HA RETUR PÅ CURRENT_FLOOR HER? SKRIVE OM INIT?
+	if err {
+		fmt.Println("FSM: Could not initiate elevator")
+	}
+
+
+	channels  := <- rcvChannelsFromQueue
 
 	breakbool := false
-	killBool  := false
 	var reachedFloor ElevLib.NextOrder
 
 	
-	floorReached := make(chan ElevLib.NextOrder)
-	newNextOrder := make(chan ElevLib.NextOrder)
+	floorReached := make(chan ElevLib.NextOrder)  // Brukes i floor_reached func til å sende ut til drive
+	newNextOrder := make(chan ElevLib.NextOrder)  // Brukes i floor_reached func til å oppdatere nxtOrder
 
-	channels.FsmRdy4nextOrder <- true
+	go floor_reached(floorReached, channels.Currentfloorupdate, floorSensor, newNextOrder)
+
+
+	for{
+		select{
+			case order := <- channels.OrderChan:
+				fmt.Println("FSM: Order =  ", order)
+
+				newNextOrder <- order
+				elev_set_motor_direction(order.Direction)
+
+				
+				for {
+					select{
+						case reachedFloor = <-floorReached:
+							elev_set_motor_direction(0)
+							breakbool = true
+
+						case newOrder := <- channels.UpdateOrderChan:
+							newNextOrder <- newOrder
+							fmt.Println("FSM: UPDATED Order = ", newOrder)
+					}
+					if breakbool {
+						break;
+					}
+				}
+					
+				breakbool = false
+
+				channels.DeleteOrder <- reachedFloor
+
+				if reachedFloor.Direction == 1 && reachedFloor.ButtonType == ElevLib.BUTTON_CALL_UP{
+					setLightsOff <- []int{ ElevLib.BUTTON_CALL_UP, reachedFloor.Floor, 0 }
+					setLightsOff <- []int{ ElevLib.BUTTON_COMMAND, reachedFloor.Floor, 0 }
+				} else if reachedFloor.Direction == -1 && reachedFloor.ButtonType == ElevLib.BUTTON_CALL_DOWN{
+					setLightsOff <- []int{ ElevLib.BUTTON_CALL_DOWN, reachedFloor.Floor, 0 }
+					setLightsOff <- []int{ ElevLib.BUTTON_COMMAND, reachedFloor.Floor, 0 }
+				} else {
+					setLightsOff <- []int{ ElevLib.BUTTON_COMMAND, reachedFloor.Floor, 0 }
+				}
+
+				fmt.Println("FSM: Door opening")
+				elev_set_door_open_lamp(true)
+				time.Sleep(3*time.Second)
+				elev_set_door_open_lamp(false)
+				fmt.Println("FSM: Door closing")
+
+			// case ???
+
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
+/*func driver(channels ElevLib.OrderHandler2FSMchannels, killDrive chan bool, setLightsOff chan []int) {
+
+
+	breakbool := false
+	var reachedFloor ElevLib.NextOrder
+
+	
+	floorReached := make(chan ElevLib.NextOrder)  // Brukes i floor_reached func til å sende ut til drive
+	newNextOrder := make(chan ElevLib.NextOrder)  // Brukes i floor_reached func til å oppdatere nxtOrder
+
 	for{
 		select{
 			case order := <- channels.OrderChan:
@@ -126,6 +201,7 @@ func driver(channels ElevLib.OrderHandler2FSMchannels, killDrive chan bool, setL
 
 				fmt.Println("driver: Order = ", order, " received")
 				
+				// Kan oppgraderes til å kjøre hele tiden ??
 				go floor_reached(floorReached, channels.Currentfloorupdate, newNextOrder, order)
 
 				elev_set_motor_direction(order.Direction)
@@ -163,45 +239,16 @@ func driver(channels ElevLib.OrderHandler2FSMchannels, killDrive chan bool, setL
 				elev_set_door_open_lamp(true)
 				time.Sleep(3*time.Second)
 				elev_set_door_open_lamp(false)
-				channels.FsmRdy4nextOrder <- true
 
-			case <-killDrive:
-				killBool = true
-
-		}
-		if killBool {
-			break
 		}
 		time.Sleep(time.Millisecond)
 	}
-	fmt.Println("Fms: driver killed")
-	fmt.Println(" ")
-}
-
-func Fsm( rcvChannelsFromQueue chan ElevLib.OrderHandler2FSMchannels, setLightsOff chan []int) {
-	
-
-	var killGoroutines chan bool
-	killDrive := make(chan bool)
-
-	for {
-		select {
-			case channels := <-rcvChannelsFromQueue:
-				killGoroutines = channels.KillGoRoutine
-
-				go driver(channels, killDrive, setLightsOff)
-
-			case <-killGoroutines:
-				killDrive <- true
-		}
-		time.Sleep(time.Millisecond)
-	}
-}
-
+}*/
 
 
 // GAMMELT
 
+/*
 func FSM(sendReq2EM chan ElevLib.NewReqFSM, orderHandledChan chan ElevLib.NextOrder, setLightsOff chan []int, setlights chan bool, currentfloorupdate chan int) {
 
 	rcvFromQueue := make(chan ElevLib.NextOrder)
@@ -300,3 +347,4 @@ func FSM(sendReq2EM chan ElevLib.NewReqFSM, orderHandledChan chan ElevLib.NextOr
 	}
 }
 
+*/

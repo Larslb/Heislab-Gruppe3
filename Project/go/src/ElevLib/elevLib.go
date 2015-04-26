@@ -34,7 +34,6 @@ type MyElev struct {
 
 
 type NextOrder struct { // Ny
-	Ip string
 	ButtonType int
 	Floor int
 	Direction int
@@ -42,23 +41,23 @@ type NextOrder struct { // Ny
 
 
 
-type OrderHandler2FSMchannels struct { // NY
+type QM2FSMchannels struct { // NY
 	OrderChan chan NextOrder
 	UpdateOrderChan chan NextOrder
-	KillGoRoutine chan bool
-	FsmRdy4nextOrder chan bool
-	FloorReachedChan chan bool
+	//KillGoRoutine chan bool			// SLETTE?
+	//FsmRdy4nextOrder chan bool
+	//FloorReachedChan chan bool
 	DeleteOrder chan NextOrder
 	Currentfloorupdate chan int
 }
 
-type Queue2OrderHandlerchannels struct { // NY
+type Queue2OrderHandlerchannels struct { // SLETTE ?
 	IOrdersChan chan MyOrder
 	EOrdersChan chan MyOrder
 	IsAliveChan chan bool
 }
 
-type NewReqFSM struct { // GAMMEL
+type NewReqFSM struct { // GAMMEL   SLETTE ?
 	OrderChan chan NextOrder
 	UpdateOrderChan chan NextOrder
 	KillThread chan bool
