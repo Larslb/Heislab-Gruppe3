@@ -31,22 +31,15 @@ type MyElev struct {
 	Info MyInfo
 }
 
-
-
-type NextOrder struct { // Ny
+type NextOrder struct {
 	ButtonType int
 	Floor int
 	Direction int
 }
 
-
-
-type QM2FSMchannels struct { // NY
+type QM2FSMchannels struct {
 	OrderChan chan NextOrder
 	UpdateOrderChan chan NextOrder
-	//KillGoRoutine chan bool			// SLETTE?
-	//FsmRdy4nextOrder chan bool
-	//FloorReachedChan chan bool
 	DeleteOrder chan NextOrder
 	Currentfloorupdate chan int
 }
