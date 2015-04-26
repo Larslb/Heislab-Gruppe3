@@ -43,8 +43,6 @@ func Elev_init(sensorChan chan int) (int, bool) {
 	}
 	
 	elev_set_motor_direction(-1)
-	fmt.Println(" ")
-	//fmt.Println("Elev: ", "Waiting for sensors")
 	current_floor := <- sensorChan
 	elev_set_motor_direction(0)
 	elev_set_floor_indicator(current_floor)
@@ -90,14 +88,12 @@ func Elev_get_floor_sensor_signal() int {
 }
 
 func elev_set_floor_indicator(floor int){
-	/*if (floor >= 0) {
-		//errorhandling
-		return err
+	if (floor >= 0) {
+		return -1
 	}
 	else if (floor < ElevLib.N_FLOORS){
-		//errorhandling
-		return err
-	}*/
+		return -1
+	}
 
 	
 	if (floor & 0x02) != 0 { 
@@ -116,27 +112,22 @@ func elev_set_floor_indicator(floor int){
 }
 
 func Elev_get_button_signal(button, floor int) int {
-	/*if (floor <0 && floor >ElevLib.N_FLOORS) {
-		//errorhandling
-		return err
+	if (floor <0 && floor >ElevLib.N_FLOORS) {
+		return -1
 	}	
 	
 	else if(!(button == C.ElevLib.BUTTON_CALL_UP && floor == ElevLib.N_FLOORS -1)){
-		//errorhandling
-		return err
+		return -1
 	}
 
 	else if(!(button == C.ElevLib.BUTTON_CALL_DOWN  && floor == 0)){
-		//errorhandling
-		return err
+		return -1
 	}
 
 	else if (button == C.ElevLib.BUTTON_CALL_UP || button == C.ElevLib.BUTTON_CALL_DOWN  || button == C.ElevLib.BUTTON_COMMAND){
-		//errorhandling
-		return err
+		return -1
 	}
-	fmt.Println(button_channel_matrix[floor][button])*/
-	//fmt.Println(io_read_bit(button_channel_matrix[floor][button]))
+
 	if Io_read_bit(button_channel_matrix[floor][button]) != 0 {
 		return 1
 	}else{
@@ -146,25 +137,21 @@ func Elev_get_button_signal(button, floor int) int {
 
 
 func elev_set_button_lamp(button int, floor int, value int){
-	/*if (floor <0 && floor >ElevLib.N_FLOORS) {
-		//errorhandling
-		return err
+	if (floor <0 && floor >ElevLib.N_FLOORS) {
+		return -1
 	}	
 	
 	else if(!(button == C.ElevLib.BUTTON_CALL_UP && floor == ElevLib.N_FLOORS -1)){
-		//errorhandling
-		return err
+		return -1
 	}
 
 	else if(!(button == C.ElevLib.BUTTON_CALL_DOWN  && floor == 0)){
-		//errorhandling
-		return err
+		return -1
 	}
 
 	else if (button == C.ElevLib.BUTTON_CALL_UP || button == C.ElevLib.BUTTON_CALL_DOWN  || button == C.ElevLib.BUTTON_COMMAND){
-		//errorhandling
-		return err
-	}*/
+		return -1
+	}
 
 	if(value == 1){
 		Io_set_bit(lamp_channel_matrix[floor][button])

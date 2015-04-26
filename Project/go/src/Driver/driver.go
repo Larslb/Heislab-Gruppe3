@@ -38,7 +38,7 @@ func ReadFloorPanel(buttonChan chan ElevLib.MyOrder){
 	}
 }
 
-func ReadSensors(sensorChan chan int){  // ENDRET TIL EXPORT FUNC
+func ReadSensors(sensorChan chan int){ 
 	
 	for { // INIT ONLY
 		tmpVal1 := Elev_get_floor_sensor_signal()
@@ -80,7 +80,7 @@ func floor_reached(floorReached chan ElevLib.NextOrder, updateCurrentFloor chan 
 		ButtonType: -2,
 		Floor: -1,
 		Direction: 0,
-	} // TRENGER VI DENNE?
+	} 
 
 
 	current_floor := -1
@@ -115,7 +115,7 @@ func Fsm( rcvChannelsFromQueue chan ElevLib.QM2FSMchannels, setLightsOff chan []
 
 	_,err := Elev_init(floorSensor)
 	if err {
-		fmt.Println("FSM: Could not initiate elevator")  // Returnere error til MAIN?
+		fmt.Println("FSM: Could not initiate elevator")  // Should Return error t0 MAIN
 	}
 
 
@@ -133,7 +133,6 @@ func Fsm( rcvChannelsFromQueue chan ElevLib.QM2FSMchannels, setLightsOff chan []
 	for{
 		select{
 			case order := <- channels.OrderChan:
-				fmt.Println("FSM: Order =  ", order)
 
 				newNextOrder <- order
 				elev_set_motor_direction(order.Direction)
@@ -147,7 +146,6 @@ func Fsm( rcvChannelsFromQueue chan ElevLib.QM2FSMchannels, setLightsOff chan []
 
 						case newOrder := <- channels.UpdateOrderChan:
 							newNextOrder <- newOrder
-							fmt.Println("FSM: UPDATED Order = ", newOrder)
 					}
 					if breakbool {
 						break;

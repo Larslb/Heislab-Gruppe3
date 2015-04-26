@@ -4,16 +4,17 @@ import(
 	"os"
 	"os/signal"
 	".././Driver"
-	".././Queue"
+	//".././Queue"
+	".././ElevLib"
 	"syscall"
 )
 
 
 func cleanup(backup ElevLib.MyInfo) {
     fmt.Println("cleanup!!")
-    Driver.Elev_set_speed(0)
+    Driver.Elev_set_motor_dir(0)
     fo, _ := os.Create("Backup.txt")
-    fo.Write(backup)
+    fo.Write([]byte(backup))
    	fo.Close()
 }
 
