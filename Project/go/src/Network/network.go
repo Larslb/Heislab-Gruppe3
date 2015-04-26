@@ -331,7 +331,13 @@ func readfromsocket( conn *net.TCPConn,  recvInfo chan ElevLib.MyInfo, recvOrder
 	//fmt.Println("READALL using socketmap")
 	var temp ElevLib.MyElev
 	json.Unmarshal(buffer[:msglen], &temp)
-	fmt.("RECIEVED  TEMP: ", temp.MessageType)
+
+
+	fmt.Println(" ")
+	fmt.Println("-------------------------")
+	fmt.Println("RECIEVED  TEMP: ", temp.MessageType)
+	fmt.Println("-------------------------")
+	fmt.Println(" ")
 	if temp.MessageType == "INFO" {
 		fmt.Println("INFO recieved")
 		recvInfo <-temp.Info
