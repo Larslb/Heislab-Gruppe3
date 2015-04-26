@@ -89,8 +89,27 @@ func SolvMaster(read chan int, masterchan chan int , slavechan chan int) {
 	time.Sleep(10*time.Millisecond)	
 	}
 }
+/*
+func OrderToString(order ElevLib.MyOrder)string{
+	return( "ORDER" + ":" order.IP + ":" + string(order.ButtonType) + ":" + string(order.Floor) +  + ":" + string(order.Set))
+}
+
+func StringToElev(str string)ElevLib.MyElev {
 
 
+	order := ElevLib.MyElev{}
+	s1 := strings.SplitAfterN(str, ":",-1)
+	order.MessageType = s1[0]
+	order.Order.Ip = s1[1]
+	order.Order.ButtonType = s1[2]
+	order.Order.Floor = s1[3]
+	order.Order.Set = s1[4]
+	order.Info = ElevLib.MyInfo{}
+	return order
+
+
+}
+*/
 /*
 
 func OrderNotInList([]orders ElevLib.MyOrder, neworder ElevLib.MyOrder) (bool) {
@@ -234,6 +253,7 @@ func Master(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder , PanelO
 				//OPPDATERE INFOMAP MED INFOEN MOTTATT PÅ SOCKET
 				infomap[NewInfo.Ip] = NewInfo
 				fmt.Println("NETWORK:   INFO RECIEVED!!")
+				printInfo()
 			case NewOrder := <-recvOrder:
 				NewOrder.Ip = costfunction(NewOrder)
 				if NewOrder.Set {
@@ -310,7 +330,6 @@ func ReadALL(writing chan int, recvInfo chan ElevLib.MyInfo, recvOrder chan Elev
 		select{
 		
 		case <-writing:
-			fmt.Println("ReadALL using socketmap")
 			for _,connection := range socketmap{
 				readfromsocket(connection, recvInfo, recvOrder)
 			}
