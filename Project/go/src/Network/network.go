@@ -254,7 +254,7 @@ func Slave(sendInfo chan ElevLib.MyInfo, extOrder chan ElevLib.MyOrder, Panelord
 				}
 
 				fmt.Println("Sending: ", sendObject.MessageType, sendObject.Order, sendObject.Info)
-				PrintAddresses()
+				//PrintAddresses()
 
 				sentinfo := writetoSocket(masterSocket, sendObject)
 
@@ -373,7 +373,8 @@ func TCPAccept(writeToSocket chan int, stopTCP chan int) {
 				time.Sleep(time.Millisecond)
 			case <-stopTCP:
 				return
-		}time.Sleep(10*time.Millisecond)
+		}
+		time.Sleep(10*time.Millisecond)
 	}
 }
 

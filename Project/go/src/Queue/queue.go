@@ -2,13 +2,13 @@ package Queue
 
 import(
 	"time"
-	"fmt"
+	//"fmt"
 	".././ElevLib"
 )
 
 var localIp string
 
-func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromSensor chan ElevLib.MyOrder, externalOrdersFromMaster chan ElevLib.MyOrder, setLightsOn chan []int, localIpsent string, newInfo chan ElevLib.MyInfo, orderdeletion chan ElevLib.MyOrder, orderDelFromMaster chan ElevLib.MyOrder){
+func Queue_Manager( channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromSensor chan ElevLib.MyOrder, externalOrdersFromMaster chan ElevLib.MyOrder, setLightsOn chan []int, localIpsent string, newInfo chan ElevLib.MyInfo, orderdeletion chan ElevLib.MyOrder, orderDelFromMaster chan ElevLib.MyOrder){
 
 	localIp = localIpsent
 
@@ -34,12 +34,16 @@ func Queue_Manager(channels2fsm chan ElevLib.QM2FSMchannels, internalOrdersFromS
 						Currentfloorupdate: currentFloorUpdateChan,
 					}
 	
+	channels2fsm<- qm2fsmChannels
+	
 	sendInfo := ElevLib.MyInfo {
 		Ip: localIp,
 		Dir: orderdirection,
 		CurrentFloor: currentFloor,
 		InternalOrders: internalOrders,
 	}
+	
+	
 
 	for {
 		select {

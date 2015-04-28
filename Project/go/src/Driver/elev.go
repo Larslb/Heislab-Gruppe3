@@ -1,7 +1,7 @@
 package Driver
 import (
 	".././ElevLib"
-	"fmt"
+	//"fmt"
 )
 
 
@@ -89,10 +89,9 @@ func Elev_get_floor_sensor_signal() int {
 
 func elev_set_floor_indicator(floor int){
 	if (floor >= 0) {
-		return -1
-	}
-	else if (floor < ElevLib.N_FLOORS){
-		return -1
+		//return -1
+	}else if (floor < ElevLib.N_FLOORS){
+		//return -1
 	}
 
 	
@@ -113,19 +112,13 @@ func elev_set_floor_indicator(floor int){
 
 func Elev_get_button_signal(button, floor int) int {
 	if (floor <0 && floor >ElevLib.N_FLOORS) {
-		return -1
-	}	
-	
-	else if(!(button == C.ElevLib.BUTTON_CALL_UP && floor == ElevLib.N_FLOORS -1)){
-		return -1
-	}
-
-	else if(!(button == C.ElevLib.BUTTON_CALL_DOWN  && floor == 0)){
-		return -1
-	}
-
-	else if (button == C.ElevLib.BUTTON_CALL_UP || button == C.ElevLib.BUTTON_CALL_DOWN  || button == C.ElevLib.BUTTON_COMMAND){
-		return -1
+		//return -1
+	}else if(!(button == ElevLib.BUTTON_CALL_UP && floor == ElevLib.N_FLOORS -1)){
+		//return -1
+	}else if(!(button == ElevLib.BUTTON_CALL_DOWN  && floor == 0)){
+		//return -1
+	}else if (button == ElevLib.BUTTON_CALL_UP || button == ElevLib.BUTTON_CALL_DOWN  || button == ElevLib.BUTTON_COMMAND){
+		//return -1
 	}
 
 	if Io_read_bit(button_channel_matrix[floor][button]) != 0 {
@@ -138,19 +131,13 @@ func Elev_get_button_signal(button, floor int) int {
 
 func elev_set_button_lamp(button int, floor int, value int){
 	if (floor <0 && floor >ElevLib.N_FLOORS) {
-		return -1
-	}	
-	
-	else if(!(button == C.ElevLib.BUTTON_CALL_UP && floor == ElevLib.N_FLOORS -1)){
-		return -1
-	}
-
-	else if(!(button == C.ElevLib.BUTTON_CALL_DOWN  && floor == 0)){
-		return -1
-	}
-
-	else if (button == C.ElevLib.BUTTON_CALL_UP || button == C.ElevLib.BUTTON_CALL_DOWN  || button == C.ElevLib.BUTTON_COMMAND){
-		return -1
+		//return -1
+	}else if(!(button == ElevLib.BUTTON_CALL_UP && floor == ElevLib.N_FLOORS -1)){
+		//return -1
+	}else if(!(button == ElevLib.BUTTON_CALL_DOWN  && floor == 0)){
+		//return -1
+	}else if (button == ElevLib.BUTTON_CALL_UP || button == ElevLib.BUTTON_CALL_DOWN  || button == ElevLib.BUTTON_COMMAND){
+		//return -1
 	}
 
 	if(value == 1){
